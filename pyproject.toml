@@ -1,0 +1,77 @@
+[project]
+name = "distrirag"
+version = "0.2.0"
+description = "DistriRAG: reliable hospital knowledge indexing and guarded clinical-reference assistant"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "psycopg[binary,pool]>=3.2",
+    "redis>=5.0",
+    "pypdf>=5.0",
+    "cryptography>=43",
+    "python-multipart>=0.0.9",
+    "prometheus-client>=0.21",
+    "pyjwt[crypto]>=2.9",
+    "pyyaml>=6.0",
+    # Local name detection for the PHI screen (runs in-process; the model is bundled, so air-gapped builds work).
+    "spacy>=3.8,<3.9",
+    "en_core_web_lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl",
+]
+
+[project.optional-dependencies]
+minilm = ["fastembed>=0.4"]
+s3 = ["boto3>=1.35"]
+azure = ["azure-storage-blob>=12.23"]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "hypothesis>=6.112",
+    "fpdf2>=2.8",
+    "types-PyYAML",
+    "boto3>=1.35",
+    "azure-storage-blob>=12.23",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["common", "api", "pipeline", "search", "assistant", "documents", "evals"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = [
+    "integration: needs real Postgres and Redis (make test-integration)",
+    "regression: end-to-end regression gates (make regression)",
+    "footprint: memory footprint check against the lite compose stack",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["web", ".superpowers"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["api.auth.require_group", "fastapi.Depends", "fastapi.Form", "fastapi.Header", "fastapi.File", "fastapi.Query"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+exclude = ["web/", "tests/"]
+
+[tool.coverage.run]
+source = ["pipeline", "assistant", "search", "documents", "common"]

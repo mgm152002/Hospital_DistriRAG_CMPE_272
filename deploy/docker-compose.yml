@@ -1,0 +1,81 @@
+# DistriRAG. Profiles:
+#   lite      (`make up`)           postgres + redis + one `app` process running every role. About 1 GB RAM total.
+#   full      (`make up-full`)      api + relay + 2 workers + recovery as separate containers.
+#   airgapped (`make up-airgapped`) full + a local Ollama model server (DEPLOYMENT_PROFILE=airgapped).
+name: distrirag
+x-app: &app
+  image: distrirag:latest
+  build: { context: .., target: runtime, args: { EXTRAS: "${EXTRAS:-}" } }
+  restart: unless-stopped
+  env_file: [ { path: ../.env, required: false } ]
+  environment: &env
+    PORT: "8000"
+    DATABASE_URL: postgresql://distrirag:distrirag@postgres:5432/distrirag
+    REDIS_URL: redis://redis:6379/0
+    BLOB_ROOT: /data/blobs
+    CHAT_SETTINGS_PATH: /data/settings/chat.json
+  volumes: [ "blobs:/data/blobs", "chat_settings:/data/settings" ]
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment: { POSTGRES_USER: distrirag, POSTGRES_PASSWORD: distrirag, POSTGRES_DB: distrirag }
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=40", "-c", "work_mem=4MB",
+              "-c", "maintenance_work_mem=32MB", "-c", "effective_cache_size=128MB", "-c", "max_wal_size=256MB"]
+    volumes: [ "pgdata:/var/lib/postgresql/data" ]
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "distrirag"], interval: 3s, retries: 40 }
+    mem_limit: 256m
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec",
+              "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    volumes: [ "redisdata:/data" ]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 3s, retries: 40 }
+    mem_limit: 160m
+
+  app:
+    <<: *app
+    profiles: ["lite"]
+    environment: { <<: *env, ROLE: all }
+    command: ["python", "-m", "run", "all"]
+    ports: [ "${PORT:-8000}:8000" ]
+    mem_limit: 1536m  # the PHI screen's language model (en_core_web_lg) brings the app to ~750 MB once loaded
+
+  api:
+    <<: *app
+    profiles: ["full", "airgapped"]
+    environment: { <<: *env, ROLE: api }
+    command: ["python", "-m", "run", "api"]
+    ports: [ "${PORT:-8000}:8000" ]
+  relay:
+    <<: *app
+    profiles: ["full", "airgapped"]
+    environment: { <<: *env, ROLE: relay }
+    command: ["python", "-m", "run", "relay"]
+  worker:
+    <<: *app
+    profiles: ["full", "airgapped"]
+    environment: { <<: *env, ROLE: worker }
+    command: ["python", "-m", "run", "worker"]
+    deploy: { replicas: 2 }
+    restart: always
+  recovery:
+    <<: *app
+    profiles: ["full", "airgapped"]
+    environment: { <<: *env, ROLE: recovery }
+    command: ["python", "-m", "run", "recovery"]
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["airgapped"]
+    restart: unless-stopped
+    volumes: [ "ollama:/root/.ollama" ]
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 3; ollama pull qwen2.5:1.5b-instruct; wait"]
+
+volumes: { pgdata: {}, redisdata: {}, blobs: {}, chat_settings: {}, ollama: {} }

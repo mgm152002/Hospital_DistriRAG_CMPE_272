@@ -1,0 +1,95 @@
+# DistriRAG CI. Every job uses the same containerized make targets as a developer laptop (spec TS-4).
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main, distrirag]
+  schedule:
+    - cron: "17 3 * * *"   # nightly end-to-end run
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make lint
+
+  unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test
+      - run: make coverage-matrix
+
+  integration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test-integration
+
+  regression:
+    runs-on: ubuntu-24.04
+    needs: [unit]
+    steps:
+      - uses: actions/checkout@v4
+      - run: make regression
+
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test-web
+      - run: docker compose -f deploy/docker-compose.test.yml run --rm --no-deps web npm run build
+
+  docker:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        extras: ["", "minilm,s3,azure"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          build-args: EXTRAS=${{ matrix.extras }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  audit:
+    runs-on: ubuntu-24.04
+    continue-on-error: true   # warn only
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f deploy/docker-compose.test.yml run --rm --no-deps unit sh -c "pip install -q pip-audit && pip-audit"
+      - run: docker compose -f deploy/docker-compose.test.yml run --rm --no-deps web sh -c "npm install --no-fund -s && npm audit --audit-level=high"
+
+  e2e:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'e2e')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "LLM_PROVIDER=fake" > .env
+      - run: make up
+      - run: |
+          for i in $(seq 1 60); do curl -sf localhost:8000/readyz && break; sleep 2; done
+      - run: make seed && make seed-v2
+      # Persona evaluation of the live stack. The fake LLM cannot answer fact questions, so CI gates on the safety
+      # checks only (permission leaks, unsafe text, PHI echo, emergency banner, refused doses), not the pass rate.
+      - run: make ux-eval ARGS="--delay 0 --gate --label ci-lite-fake-llm --export-grading 20"
+      - run: make test-e2e BASE_URL=http://host.docker.internal:8000
+      - run: make footprint
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            web/test-results
+            evals/ux/runs
