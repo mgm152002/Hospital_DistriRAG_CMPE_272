@@ -1,0 +1,340 @@
+{
+  "GET /api/admin/analytics": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/admin/documents/{document_id}/compare": {
+    "params": [
+      "authorization",
+      "document_id",
+      "from_version",
+      "to_version",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/audit": {
+    "params": [
+      "action",
+      "actor",
+      "authorization",
+      "from",
+      "page",
+      "to",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/audit.csv": {
+    "params": [
+      "action",
+      "actor",
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/auth/config": {
+    "params": [],
+    "body": []
+  },
+  "POST /api/auth/demo/{user_id}": {
+    "params": [
+      "user_id"
+    ],
+    "body": []
+  },
+  "POST /api/auth/login": {
+    "params": [],
+    "body": [
+      "application/json"
+    ]
+  },
+  "POST /api/auth/logout": {
+    "params": [],
+    "body": []
+  },
+  "POST /api/auth/register": {
+    "params": [],
+    "body": [
+      "application/json"
+    ]
+  },
+  "POST /api/chat": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": [
+      "application/json"
+    ]
+  },
+  "GET /api/chat/settings": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "PUT /api/chat/settings": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": [
+      "application/json"
+    ]
+  },
+  "GET /api/chat/settings/models": {
+    "params": [
+      "authorization",
+      "provider",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/conversations": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "DELETE /api/conversations/{conversation_id}": {
+    "params": [
+      "authorization",
+      "conversation_id",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/conversations/{conversation_id}": {
+    "params": [
+      "authorization",
+      "conversation_id",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/deletions": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/demo/questions": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/documents": {
+    "params": [
+      "authorization",
+      "category",
+      "q",
+      "status",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "POST /api/documents": {
+    "params": [
+      "authorization",
+      "idempotency-key",
+      "x-user-id"
+    ],
+    "body": [
+      "multipart/form-data"
+    ]
+  },
+  "DELETE /api/documents/{document_id}": {
+    "params": [
+      "authorization",
+      "document_id",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/documents/{document_id}": {
+    "params": [
+      "authorization",
+      "document_id",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "POST /api/documents/{document_id}/retire": {
+    "params": [
+      "authorization",
+      "document_id",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "POST /api/documents/{document_id}/versions": {
+    "params": [
+      "authorization",
+      "document_id",
+      "idempotency-key",
+      "x-user-id"
+    ],
+    "body": [
+      "multipart/form-data"
+    ]
+  },
+  "GET /api/egress": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/me": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/ops/dead-letters": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "POST /api/ops/dead-letters/{dead_letter_id}/replay": {
+    "params": [
+      "authorization",
+      "dead_letter_id",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "POST /api/ops/drills/{name}": {
+    "params": [
+      "authorization",
+      "name",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/ops/events": {
+    "params": [
+      "authorization",
+      "since",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/ops/streams": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/personas": {
+    "params": [],
+    "body": []
+  },
+  "GET /api/pipeline/board": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/pipeline/events": {
+    "params": [
+      "authorization",
+      "max_seconds",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/search": {
+    "params": [
+      "authorization",
+      "category",
+      "department",
+      "q",
+      "top_k",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/system/config": {
+    "params": [
+      "authorization",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/versions": {
+    "params": [
+      "authorization",
+      "status",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "POST /api/versions/{version_id}/approve": {
+    "params": [
+      "authorization",
+      "version_id",
+      "x-user-id"
+    ],
+    "body": [
+      "application/json"
+    ]
+  },
+  "GET /api/versions/{version_id}/preview": {
+    "params": [
+      "authorization",
+      "version_id",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "POST /api/versions/{version_id}/reject": {
+    "params": [
+      "authorization",
+      "version_id",
+      "x-user-id"
+    ],
+    "body": [
+      "application/json"
+    ]
+  },
+  "GET /api/versions/{version_id}/status": {
+    "params": [
+      "authorization",
+      "version_id",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /api/versions/{version_id}/text": {
+    "params": [
+      "authorization",
+      "version_id",
+      "x-user-id"
+    ],
+    "body": []
+  },
+  "GET /healthz": {
+    "params": [],
+    "body": []
+  },
+  "GET /readyz": {
+    "params": [],
+    "body": []
+  }
+}
