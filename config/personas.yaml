@@ -1,0 +1,62 @@
+# Demo personas (spec Section 3). Header sign-in maps X-User-Id to one of these; OIDC uses the same group names.
+known_groups: [all-staff, clinical, physicians, nursing, pharmacy, doc-admins, compliance, operators]
+personas:
+  priya:
+    name: "Dr. Priya Rao"
+    role: "Attending physician"
+    department: "Emergency Medicine"
+    groups: [all-staff, clinical, physicians]
+    samples:
+      - "What are our sepsis screening criteria?"
+      - "Patient has temp 39C, HR 125, BP 85/50. What should I check?"
+      - "What does the stroke alert protocol say about last known well?"
+      - "When should anticoagulation reversal be considered?"
+  sam:
+    name: "Sam Lee"
+    role: "Registered nurse"
+    department: "Medical-Surgical Nursing"
+    groups: [all-staff, clinical, nursing]
+    samples:
+      - "How long should I rub hands with alcohol-based rub?"
+      - "What is the fall risk reassessment schedule?"
+      - "Which vital signs are checked during a blood transfusion?"
+      - "What precautions apply for MRSA contact isolation?"
+  jordan:
+    name: "Jordan Kim"
+    role: "Clinical pharmacist"
+    department: "Pharmacy"
+    groups: [all-staff, clinical, pharmacy]
+    categories_first: ["Medication & Pharmacy"]
+    samples:
+      - "How is controlled substance waste witnessed and reconciled?"
+      - "Which medications need an independent double-check?"
+      - "What is the contrast allergy premedication reference?"
+  riley:
+    name: "Riley Chen"
+    role: "Patient services / front desk"
+    department: "Patient Access"
+    groups: [all-staff]
+    samples:
+      - "What are the visiting hours?"
+      - "How do I request patient transport?"
+      - "What are the sepsis screening criteria?"
+  alex:
+    name: "Alex Morgan"
+    role: "Knowledge administrator"
+    department: "Clinical Knowledge Management"
+    groups: [all-staff, doc-admins]
+    samples:
+      - "What does the hand hygiene policy say about gloves?"
+  taylor:
+    name: "Taylor Brooks"
+    role: "Compliance officer"
+    department: "Quality & Compliance"
+    groups: [all-staff, compliance]
+    samples:
+      - "What does the patient identification policy require?"
+  casey:
+    name: "Casey Diaz"
+    role: "Platform operator"
+    department: "IT Platform Operations"
+    groups: [operators]
+    samples: []
