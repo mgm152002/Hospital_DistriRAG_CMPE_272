@@ -1,0 +1,43 @@
+# Classifier rules (AG-1). Regexes are case-insensitive. Precedence: emergency > diagnosis_request >
+# patient_order > diagnostic_support > out_of_scope > clinical_reference > policy_lookup (default).
+emergency:
+  - '\b(unresponsive|not breathing|stopped breathing|no pulse|pulseless|choking)\b'
+  - '\b(seizing|seizure|coding|arresting)\s+(right\s+)?now\b'
+  - '\bcode blue\s+(now|in progress|happening)\b'
+  # Phrasings found by the persona UX corpus. Past-tense mentions ("collapsed last week") are policy questions.
+  - '^(?!.*\b(last\s+(week|month|year|night|shift)|yesterday|ago)\b).*\b(collapsed|passed out|unconscious|(isn''t|is not|not|no longer|stopped)\s+(responding|breathing|responsive))\b'
+  - '\b(face\s+droop\w*|facial\s+droop\w*|slurred\s+speech|can''t\s+speak|(arm|leg)\s+(is\s+)?(weak|numb)|sudden\s+(weakness|numbness|confusion))\b.{0,80}\b(right\s+now|just\s+now|currently|at\s+the\s+moment|happening\s+now|now)\b'
+  - '\b(right\s+now|just\s+now|currently|happening\s+now)\b.{0,60}\b(face\s+droop\w*|facial\s+droop\w*|slurred\s+speech)\b'
+  - '\b(having|in)\s+(a\s+)?(seizure|cardiac\s+arrest|anaphyla\w+)\b'
+diagnosis_request:
+  - '\b(does|do|did)\s+(this|the|my|our|he|she|they)\s*(patient|pt)?\s*(have|has)\b'
+  - '\bwhat\s+(is|''s)\s+the\s+diagnosis\b'
+  - '\bdiagnos(e|is|ing)\b'
+  - '\bwhat\s+(he|she|they|this patient|the patient)\s+(has|have)\b'
+  - '\bcould\s+(this|it|that)\s+be\b'
+  - '\bwhat\s+does\s+(the|this|my|our)\s+patient\s+have\b'
+  - '\bis\s+(it|this)\s+(likely\s+)?(sepsis|a stroke|stroke|an mi|mi|pe|dvt)\b'
+patient_order:
+  - '\bhow\s+(much|many)\b.{0,40}\b(should|do|can)\s+i\s+(give|administer|start|push|hang|use)\b'
+  - '\bwhat\s+dose\b.{0,40}\b(should|do|can)\s+i\b'
+  - '\bshould\s+i\s+(give|administer|start|push|hang|prescribe)\b'
+  - '\b(tell|give)\s+me\s+the\s+dose\b'
+  - '\bwhat\s+dose\s+of\b.{0,30}\bto\s+(give|hang|start|push|use)\b'
+  - '\b(write|give\s+me)\s+(a|an|the)\s+prescription\b'
+  - '\b\d+(\.\d+)?\s?(mg|mcg|g|units|ml)\b.{0,30}\b(now|stat)\b'
+  # Dose, rate and titration paraphrases found by the persona UX corpus.
+  - '\b(dose|dosing|dosage|rate|drip|bolus|titrat\w*|infusion)\b.{0,60}\b\d+(\.\d+)?\s?(kg|lbs?|pounds)\b'
+  - '\b\d+(\.\d+)?\s?(kg|lbs?|pounds)\b.{0,60}\b(dose|dosing|dosage|rate|drip|bolus|titrat\w*|infusion)\b'
+  - '\b(dose|dosage|dosing|drip rate|bolus amount|infusion rate)\b.{0,50}\bfor\s+(a|an|my|this|the|our)\s+(\d+\s?(kg|yo)\s+)?(pt|patient|man|woman|child|baby|infant)\b'
+  - '\bwhat\s+(?:\w+\s+){0,2}dos(e|age)\s+(of|for)\b'
+  - '\btitrat\w*\b.{0,30}\b(drip|infusion)\b'
+  - '\bhow\s+many\s+(mg|mcg|units|ml)\b.{0,40}\bfor\s+(a|an|my|this|the)\b'
+diagnostic_support:
+  - '\b(temp|temperature|hr|heart rate|bp|blood pressure|spo2|sats?|rr|resp(iratory)? rate|gcs|glucose)\b\s*(of|is|at|:)?\s*\d'
+  - '\d+(\.\d+)?\s?(c|f)\b.{0,40}\b(hr|heart rate|bp)\b'
+out_of_scope:
+  - '\b(poem|joke|song|lyrics|weather|stock|recipe|football|movie|horoscope|bitcoin)\b'
+  - '\bwrite\s+(me\s+)?(a|an)\s+(story|essay|poem)\b'
+clinical_reference:
+  - '\b(criteria|criterion|threshold|thresholds|cut-?off|signs? of|screening|score threshold|critical)\b'
+  - '\bwhen\s+is\s+(a|an)\b.{0,30}\bcritical\b'
