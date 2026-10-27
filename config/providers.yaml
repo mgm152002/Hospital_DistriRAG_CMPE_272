@@ -1,0 +1,52 @@
+# LLM provider registry (spec CP-4, E8-1). `external` providers are subject to the egress policy.
+providers:
+  fake:
+    kind: fake
+    base_url: ""
+    model: fake-cited-answer
+    api_key_env: ""
+    external: false
+    baa_signed: false
+    retains_data: false
+    region: local
+    max_concurrency: 4
+  local-ollama:
+    kind: ollama
+    base_url: http://ollama:11434
+    model: qwen2.5:1.5b-instruct
+    api_key_env: ""
+    external: false
+    baa_signed: false
+    retains_data: false
+    region: local
+    max_concurrency: 1
+  openrouter-free:
+    kind: openai_compatible
+    base_url: https://openrouter.ai/api/v1
+    model: openrouter/free
+    api_key_env: OPENROUTER_API_KEY
+    external: true
+    baa_signed: false
+    retains_data: true      # free models may log prompts: synthetic data only
+    region: us
+    max_concurrency: 2
+  azure-openai:
+    kind: openai_compatible
+    base_url: https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT
+    model: gpt-4o-mini
+    api_key_env: AZURE_OPENAI_API_KEY
+    external: true
+    baa_signed: false       # set true only after your organisation signs Microsoft's BAA
+    retains_data: false
+    region: eastus
+    max_concurrency: 4
+  local-proxy:
+    kind: openai_compatible
+    base_url: http://host.docker.internal:8317/v1
+    model: gpt-6-luna
+    api_key_env: LOCAL_PROXY_API_KEY
+    external: true           # the host proxy forwards to upstream model services
+    baa_signed: false
+    retains_data: true
+    region: proxy
+    max_concurrency: 2
