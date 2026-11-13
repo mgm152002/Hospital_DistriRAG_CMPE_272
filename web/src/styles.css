@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+/* Palette: hospital-calm. Cool blue-grey neutrals, a surgical-teal accent ("scrub"), and status colours kept distinct from the accent. */
+@theme {
+  --color-ink: #10212b;
+  --color-ink-soft: #5a6b76;
+  --color-paper: #f7fafb;
+  --color-rail: #e7f0f2;
+  --color-bubble: #e1ecef;
+  --color-navy: #12405a;
+  --color-card: #ffffff;
+  --color-rule: #d2e0e5;
+  --color-scrub: #0f766e;
+  --color-scrub-deep: #0b5a54;
+  --color-scrub-wash: #ddf1ee;
+  --color-ready: #1f7a3a;
+  --color-working: #1d5fb8;
+  --color-waiting: #a15c00;
+  --color-failed: #b42318;
+  --color-past: #6f7a80;
+  --color-alarm-wash: #fdecea;
+  --color-ready-wash: #e6f4ea;
+  --color-waiting-wash: #fdf1dc;
+  --font-sans: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-serif: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --text-xs: 0.78rem;
+  --text-sm: 0.875rem;
+  --text-base: 0.975rem;
+  --text-lg: 1.2rem;
+  --text-xl: 1.6rem;
+  --text-2xl: 2.1rem;
+}
+
+/* Dark: explicit choice, or the system's when no choice was made. */
+:root[data-theme="dark"] { color-scheme: dark;
+  --color-ink: #e4eef1; --color-ink-soft: #92a5ae; --color-paper: #131b20; --color-rail: #0b1115;
+  --color-bubble: #1e2a31; --color-navy: #1d4a5e; --color-card: #19232a; --color-rule: #2a3a42;
+  --color-scrub: #14877e; --color-scrub-deep: #6fd0c4; --color-scrub-wash: #12322f;
+  --color-ready: #6cc489; --color-working: #8fb4f0; --color-waiting: #e6b062; --color-failed: #f08a7e;
+  --color-past: #85939a; --color-alarm-wash: #3d1d1c; --color-ready-wash: #1b3324; --color-waiting-wash: #3a2c16; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark;
+    --color-ink: #e4eef1; --color-ink-soft: #92a5ae; --color-paper: #131b20; --color-rail: #0b1115;
+    --color-bubble: #1e2a31; --color-navy: #1d4a5e; --color-card: #19232a; --color-rule: #2a3a42;
+    --color-scrub: #14877e; --color-scrub-deep: #6fd0c4; --color-scrub-wash: #12322f;
+    --color-ready: #6cc489; --color-working: #8fb4f0; --color-waiting: #e6b062; --color-failed: #f08a7e;
+    --color-past: #85939a; --color-alarm-wash: #3d1d1c; --color-ready-wash: #1b3324; --color-waiting-wash: #3a2c16; }
+}
+:root[data-theme="dark"] mark { background: #6b5514; }
+
+/* Signature pieces: the gradient primary button, the teal rail wash and the frosted composer. */
+.btn-primary { background: linear-gradient(180deg, #138a80 0%, #0c625b 100%); color: #fff;
+               box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 1px 2px rgb(6 50 46 / 0.25); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-primary:disabled { background: var(--color-bubble); color: var(--color-ink-soft); box-shadow: none; }
+.rail-wash { background: radial-gradient(120% 60% at 0% 0%, color-mix(in oklab, var(--color-scrub) 10%, transparent), transparent 60%),
+             var(--color-rail); }
+.composer-shell { background: color-mix(in oklab, var(--color-rail) 70%, transparent); backdrop-filter: blur(14px);
+                  border: 1px solid color-mix(in oklab, var(--color-scrub) 14%, var(--color-rule)); }
+.composer-shell:focus-within { border-color: color-mix(in oklab, var(--color-scrub) 40%, var(--color-rule)); }
+.kbd { white-space: nowrap; flex-shrink: 0; line-height: 1.4; font-size: 0.68rem; padding: 0 0.3rem; border-radius: 0.3rem; border: 1px solid var(--color-rule);
+       color: var(--color-ink-soft); background: var(--color-card); }
+.pop { animation: pop 0.12s ease-out; }
+@keyframes pop { from { opacity: 0; transform: translateY(4px) scale(0.98); } to { opacity: 1; transform: none; } }
+.fade-in { animation: fade 0.25s ease-out; }
+@keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.shimmer { background: linear-gradient(90deg, var(--color-ink-soft) 0%, var(--color-ink) 50%, var(--color-ink-soft) 100%);
+           background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+           animation: shimmer 1.6s linear infinite; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.thin-scroll { scrollbar-width: thin; scrollbar-color: var(--color-rule) transparent; }
+
+html { background: var(--color-rail); color: var(--color-ink); font-family: var(--font-sans); }
+body { margin: 0; font-size: var(--text-base); line-height: 1.55; -webkit-font-smoothing: antialiased; background: var(--color-rail); font-feature-settings: "cv11", "ss01"; }
+:focus-visible { outline: 3px solid var(--color-scrub); outline-offset: 2px; border-radius: 4px; }
+/* The composer shows focus on its rounded box (focus-within ring), not as a second outline inside it. */
+.composer-input:focus-visible { outline: none; }
+mark { background: #fff1b8; color: inherit; padding: 0 1px; border-radius: 2px; }
+.prose-doc { font-family: var(--font-serif); font-size: 1.0625rem; line-height: 1.7; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+.surface { background: var(--color-card); border: 1px solid var(--color-rule); border-radius: 0.75rem;
+          box-shadow: 0 1px 2px rgb(16 33 43 / 0.04), 0 4px 14px rgb(16 33 43 / 0.05); }
+
+/* Assistant replies: plain rendered markdown, no card. */
+.md { line-height: 1.7; }
+.md > * + * { margin-top: 0.85em; }
+.md ul, .md ol { padding-left: 1.4em; }
+.md ul { list-style: disc; }
+.md ol { list-style: decimal; }
+.md li + li { margin-top: 0.3em; }
+.md li::marker { color: var(--color-ink-soft); }
+.md strong { font-weight: 700; }
+.md code { font-size: 0.9em; background: var(--color-bubble); border-radius: 4px; padding: 0 0.3em; }
+.md h3 { font-weight: 700; font-size: 1.05em; }
+
+/* Typing indicator before the first token. */
+.typing span { display: inline-block; width: 6px; height: 6px; border-radius: 9999px; background: var(--color-ink-soft);
+               animation: typing 1.2s infinite ease-in-out; }
+.typing span:nth-child(2) { animation-delay: 0.15s; }
+.typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+
+
+/* Form controls everywhere follow the theme; utility classes on an element still win. */
+@layer base {
+  select {
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+    background-color: var(--color-card); color: var(--color-ink);
+    border: 1px solid var(--color-rule); border-radius: 0.6rem;
+    padding: 0.4rem 2rem 0.4rem 0.75rem; font-size: var(--text-sm);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237d8f98' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 0.65rem center;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  select:hover { border-color: color-mix(in oklab, var(--color-scrub) 35%, var(--color-rule)); }
+  select:focus { outline: none; border-color: color-mix(in oklab, var(--color-scrub) 55%, var(--color-rule));
+                 box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-scrub) 15%, transparent); }
+  select option { background: var(--color-card); color: var(--color-ink); }
+  input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="number"],
+  input[type="date"], input:not([type]), textarea {
+    border-radius: 0.6rem;
+  }
+  h1 { letter-spacing: -0.02em; }
+}
