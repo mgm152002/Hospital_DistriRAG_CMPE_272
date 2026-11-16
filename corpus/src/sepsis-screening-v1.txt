@@ -1,0 +1,12 @@
+SYNTHETIC — FOR DEMONSTRATION ONLY — NOT CLINICAL GUIDANCE
+
+Sepsis Screening and Escalation Protocol
+
+1. Purpose
+Early recognition of sepsis saves lives.
+
+2. Screening criteria
+Screen for sepsis when two or more are present: temperature above 38.3 C or below 36 C, heart rate above 90, respiratory rate above 20, or new confusion.
+
+3. Escalation
+Notify the provider within 15 minutes of a positive screen and draw a lactate level.

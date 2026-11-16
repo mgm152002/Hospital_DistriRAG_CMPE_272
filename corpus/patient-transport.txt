@@ -1,0 +1,12 @@
+SYNTHETIC — FOR DEMONSTRATION ONLY — NOT CLINICAL GUIDANCE
+
+Patient Transport Request Workflow
+
+1. Requesting transport
+Submit a transport request in the transport portal at least 30 minutes before the patient needs to move.
+
+2. Information required
+Include the destination, mobility needs, oxygen requirements and isolation status.
+
+3. Isolation patients
+Flag isolation status on every request so the transport team can prepare the right protective equipment.
