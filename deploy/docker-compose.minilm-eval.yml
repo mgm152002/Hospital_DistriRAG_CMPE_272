@@ -1,0 +1,17 @@
+# A second stack for evaluation only: same code, MiniLM embeddings instead of the hashing embedder, no LLM.
+# It answers "are these retrieval misses limits of the lite profile or real gaps?" without touching the running stack:
+# its own image tag, project name (volumes), and port.
+#
+#   EXTRAS=minilm PORT=8090 docker compose -p distrirag-minilm -f deploy/docker-compose.yml \
+#       -f deploy/docker-compose.minilm-eval.yml --profile lite up -d --build
+#   API_URL=http://host.docker.internal:8090 make seed && make seed-v2
+#   python3 evals/ux/run.py --api http://localhost:8090 --label "minilm, no LLM" --delay 0
+#   docker compose -p distrirag-minilm -f deploy/docker-compose.yml -f deploy/docker-compose.minilm-eval.yml \
+#       --profile lite down -v
+services:
+  app:
+    image: distrirag:minilm-eval
+    environment:
+      EMBED_PROVIDER: minilm
+      LLM_PROVIDER: none
+      PORT: "8000"
