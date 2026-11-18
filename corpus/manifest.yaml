@@ -1,0 +1,31 @@
+# Synthetic hospital corpus (spec E12-1). Every file is invented, non-PHI, and labelled as not clinical guidance.
+# `key` links versions of one document; version 2 entries are uploaded by `make seed-v2` for the version demo.
+documents:
+  - { key: hand-hygiene, version: 1, file: hand-hygiene-v1.md, title: Hand Hygiene Policy, category: Infection Control, department: Infection Prevention, classification: internal, groups: [all-staff] }
+  - { key: hand-hygiene, version: 2, file: hand-hygiene-v2.md, title: Hand Hygiene Policy, category: Infection Control, department: Infection Prevention, classification: internal, groups: [all-staff] }
+  - { key: isolation, version: 1, file: isolation-precautions.md, title: Contact and Droplet Isolation Precautions, category: Infection Control, department: Infection Prevention, classification: internal, groups: [clinical] }
+  - { key: sepsis, version: 1, file: sepsis-screening-v1.pdf, title: Sepsis Screening and Escalation Protocol, category: Clinical Policy, department: Critical Care, classification: internal, groups: [clinical] }
+  - { key: sepsis, version: 2, file: sepsis-screening-v2.pdf, title: Sepsis Screening and Escalation Protocol, category: Clinical Policy, department: Critical Care, classification: internal, groups: [clinical] }
+  - { key: rapid-response, version: 1, file: rapid-response-criteria.md, title: Rapid Response Team Activation Criteria, category: Emergency Response, department: Critical Care, classification: internal, groups: [all-staff] }
+  - { key: code-blue, version: 1, file: code-blue.pdf, title: Code Blue Procedure, category: Emergency Response, department: Critical Care, classification: internal, groups: [all-staff] }
+  - { key: falls, version: 1, file: fall-prevention.md, title: Fall Risk Assessment and Prevention, category: Patient Safety, department: Nursing, classification: internal, groups: [clinical] }
+  - { key: pressure-injury, version: 1, file: pressure-injury-prevention.md, title: Pressure Injury Prevention, category: Nursing Procedure, department: Nursing, classification: internal, groups: [nursing] }
+  - { key: patient-id, version: 1, file: patient-identification.txt, title: "Patient Identification: Two Identifiers", category: Patient Safety, department: Quality and Safety, classification: internal, groups: [all-staff] }
+  - { key: high-alert-meds, version: 1, file: high-alert-medication.md, title: High-Alert Medication Independent Double-Check, category: Medication & Pharmacy, department: Pharmacy, classification: confidential, groups: [clinical] }
+  - { key: controlled-substance, version: 1, file: controlled-substance-waste.pdf, title: Controlled Substance Waste and Reconciliation, category: Medication & Pharmacy, department: Pharmacy, classification: restricted, groups: [pharmacy] }
+  - { key: anticoag-reversal, version: 1, file: anticoagulation-reversal.md, title: Anticoagulation Reversal Reference, category: Medication & Pharmacy, department: Pharmacy, classification: confidential, groups: [physicians, pharmacy] }
+  - { key: pain, version: 1, file: pain-assessment.md, title: Pain Assessment and Reassessment, category: Nursing Procedure, department: Nursing, classification: internal, groups: [nursing] }
+  - { key: transfusion, version: 1, file: blood-transfusion-v1.pdf, title: Blood Transfusion Administration, category: Nursing Procedure, department: Nursing, classification: confidential, groups: [clinical] }
+  - { key: transfusion, version: 2, file: blood-transfusion-v2.pdf, title: Blood Transfusion Administration, category: Nursing Procedure, department: Nursing, classification: confidential, groups: [clinical] }
+  - { key: discharge-hf, version: 1, file: discharge-heart-failure.md, title: "Discharge Instructions: Heart Failure", category: Discharge Instructions, department: Cardiology, classification: public, groups: [all-staff] }
+  - { key: discharge-wound, version: 1, file: discharge-wound-care.txt, title: "Discharge Instructions: Post-op Wound Care", category: Discharge Instructions, department: Surgery, classification: public, groups: [all-staff] }
+  - { key: visitors, version: 1, file: visitor-policy-v1.md, title: Visitor Policy, category: Operational Workflow, department: Patient Services, classification: public, groups: [all-staff] }
+  - { key: visitors, version: 2, file: visitor-policy-v2.md, title: Visitor Policy, category: Operational Workflow, department: Patient Services, classification: public, groups: [all-staff] }
+  - { key: transport, version: 1, file: patient-transport.txt, title: Patient Transport Request Workflow, category: Operational Workflow, department: Patient Services, classification: internal, groups: [all-staff] }
+  - { key: sharps, version: 1, file: sharps-exposure.md, title: Sharps Injury and Bloodborne Exposure, category: Patient Safety, department: Occupational Health, classification: internal, groups: [all-staff] }
+  - { key: restraint, version: 1, file: restraint-seclusion.pdf, title: Restraint and Seclusion Policy, category: Clinical Policy, department: Nursing, classification: confidential, groups: [clinical] }
+  - { key: stroke, version: 1, file: stroke-alert.md, title: Stroke Alert Protocol, category: Emergency Response, department: Neurology, classification: internal, groups: [clinical] }
+  - { key: chest-pain, version: 1, file: chest-pain-pathway.md, title: Chest Pain Pathway, category: Clinical Policy, department: Emergency Department, classification: internal, groups: [clinical] }
+  - { key: hypoglycemia, version: 1, file: hypoglycemia-management.md, title: Hypoglycemia Management Protocol, category: Clinical Policy, department: Endocrinology, classification: internal, groups: [clinical] }
+  - { key: contrast, version: 1, file: contrast-premedication.md, title: Contrast Allergy Premedication Reference, category: Departmental Reference, department: Radiology, classification: confidential, groups: [physicians, pharmacy] }
+  - { key: lab-critical, version: 1, file: lab-critical-values.txt, title: Lab Critical Value Notification, category: Departmental Reference, department: Laboratory, classification: internal, groups: [clinical] }
