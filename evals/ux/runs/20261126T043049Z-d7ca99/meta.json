@@ -1,0 +1,38 @@
+{
+  "run_id": "20261126T043049Z-d7ca99",
+  "started": "2026-11-26T04:30:49.779117+00:00",
+  "api": "http://localhost:8080",
+  "git_commit": "6c0cca99347fbb7afddb92db86088f6bc9e0bce3",
+  "git_dirty": true,
+  "chat_settings": {
+    "provider": "openrouter-free",
+    "model": "openrouter/free",
+    "free_only": true,
+    "enabled": true,
+    "key_configured": true,
+    "can_edit": true,
+    "network_access": true,
+    "allowed_hosts": [
+      "openrouter.ai"
+    ],
+    "external_max_classification": "internal",
+    "catalog_notice": null,
+    "airgapped": false
+  },
+  "corpus_version": "2026-11-25.1",
+  "corpus_sha256": "f1c082bd9818fdb70b020e127a20e41d151735440a30db3919b34eec77dd7b44",
+  "label": "lite profile, openrouter/free, after UX fixes",
+  "repeats": 1,
+  "args": {
+    "api": "http://localhost:8080",
+    "only": "",
+    "delay": 1.0,
+    "retry_outage": 1,
+    "repeat": 1,
+    "gate": true,
+    "min_pass": 0.0,
+    "export_grading": 20,
+    "label": "lite profile, openrouter/free, after UX fixes"
+  },
+  "finished": "2026-11-26T04:36:45.455091+00:00"
+}
