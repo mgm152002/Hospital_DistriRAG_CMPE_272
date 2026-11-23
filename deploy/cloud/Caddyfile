@@ -1,0 +1,6 @@
+# Automatic HTTPS for DistriRAG. Replace the hostname with your DNS name.
+{$DOMAIN} {
+    encode gzip
+    reverse_proxy app:8000
+    header Strict-Transport-Security "max-age=31536000"
+}

@@ -1,0 +1,16 @@
+# Overlay for one small VM: adds Caddy (HTTPS) in front of the lite stack and removes the public app port.
+# docker compose -f deploy/docker-compose.yml -f deploy/cloud/docker-compose.cloud.yml --profile lite up -d
+services:
+  app:
+    ports: !reset []
+    expose: ["8000"]
+    env_file: [ { path: ../.env.cloud, required: true } ]
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["lite", "full"]
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment: { DOMAIN: "${DOMAIN}" }
+    volumes: [ "./cloud/Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data" ]
+    depends_on: [app]
+volumes: { caddy_data: {} }
