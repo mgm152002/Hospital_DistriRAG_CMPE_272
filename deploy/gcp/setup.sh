@@ -43,8 +43,10 @@ quiet g iam workload-identity-pools providers describe github --location=global 
     --workload-identity-pool=github --issuer-uri=https://token.actions.githubusercontent.com \
     --attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository \
     --attribute-condition="assertion.repository=='$REPO'"
-POOL=$(g iam workload-identity-pools describe github --location=global --format='value(name)')
-PROVIDER=$(g iam workload-identity-pools providers describe github --location=global \
+# A just-created pool or provider can take a minute to become readable.
+retry() { for _ in $(seq 1 12); do "$@" 2>/dev/null && return 0; sleep 10; done; "$@"; }
+POOL=$(retry g iam workload-identity-pools describe github --location=global --format='value(name)')
+PROVIDER=$(retry g iam workload-identity-pools providers describe github --location=global \
   --workload-identity-pool=github --format='value(name)')
 quiet g iam service-accounts add-iam-policy-binding "$DEPLOY_SA" --role=roles/iam.workloadIdentityUser \
   --member="principalSet://iam.googleapis.com/$POOL/attribute.repository/$REPO"
