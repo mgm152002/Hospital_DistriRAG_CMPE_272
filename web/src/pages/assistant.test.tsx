@@ -335,6 +335,27 @@ test("deleting a thread removes it", async () => {
   expect(deleted).toBe("conv-8");
 });
 
+test("renaming a thread saves the new title, and Escape cancels", async () => {
+  let saved: unknown = null;
+  server.use(http.get("/api/conversations", () => HttpResponse.json(saved
+               ? [threads[0], { ...threads[1], title: "ED visitor rules" }] : threads)),
+             http.patch("/api/conversations/:id", async ({ params, request }) => {
+               saved = { id: params.id, ...(await request.json() as object) };
+               return HttpResponse.json({ conversation_id: params.id, title: "ED visitor rules" });
+             }));
+  const user = userEvent.setup();
+  renderApp("/assistant", "priya");
+  await user.click(await screen.findByRole("button", { name: "Rename Visiting hours" }));
+  await user.keyboard("{Escape}");
+  expect(saved).toBeNull();
+  await user.click(await screen.findByRole("button", { name: "Rename Visiting hours" }));
+  const box = screen.getByRole("textbox", { name: "New title for Visiting hours" });
+  await user.clear(box);
+  await user.type(box, "ED visitor rules{Enter}");
+  expect(saved).toEqual({ id: "conv-8", title: "ED visitor rules" });
+  expect(await screen.findByRole("link", { name: "ED visitor rules" })).toBeInTheDocument();
+});
+
 test("opening a thread shows its questions and answers", async () => {
   server.use(http.get("/api/conversations/conv-9", () => HttpResponse.json(stored)));
   renderApp("/assistant?c=conv-9", "priya");

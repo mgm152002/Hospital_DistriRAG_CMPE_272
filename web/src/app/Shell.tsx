@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, BookOpenText, LibraryBig, LogOut, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Pin, PinOff,
-         Hospital, ScanSearch, Search, Settings2, ShieldCheck, SquarePen, Sun, Trash2, Waypoints, X,
+         Hospital, PencilLine, ScanSearch, Search, Settings2, ShieldCheck, SquarePen, Sun, Trash2, Waypoints, X,
          type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
@@ -54,6 +54,7 @@ function Threads({ onNavigate, searchRef }: { onNavigate: () => void; searchRef:
   const [filter, setFilter] = useState("");
   const [pins, togglePin] = usePins();
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; draft: string } | null>(null);
   const active = location.pathname === "/assistant" ? new URLSearchParams(location.search).get("c") : null;
   const threads = useQuery({ queryKey: ["conversations", me?.user_id], enabled: !!me,
                              queryFn: () => api<ConversationSummary[]>("/api/conversations") });
@@ -67,6 +68,23 @@ function Threads({ onNavigate, searchRef }: { onNavigate: () => void; searchRef:
       if (id === active) navigate("/assistant", { replace: true });
     },
   });
+  const rename = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) =>
+      api<{ conversation_id: string; title: string }>(`/api/conversations/${id}`, {
+        method: "PATCH", body: JSON.stringify({ title }), headers: { "Content-Type": "application/json" } }),
+    onSuccess: ({ conversation_id, title }) => {
+      client.setQueryData<ConversationSummary[]>(["conversations", me?.user_id],
+        (all) => all?.map((c) => (c.conversation_id === conversation_id ? { ...c, title } : c)));
+      client.invalidateQueries({ queryKey: ["conversations"] });
+      setRenaming(null);
+    },
+  });
+  const saveRename = () => {
+    const title = renaming?.draft.trim();
+    if (rename.isPending) return;
+    if (!renaming || !title) return setRenaming(null);
+    rename.mutate({ id: renaming.id, title });
+  };
   const groups = useMemo(() => {
     const now = new Date();
     const needle = filter.trim().toLowerCase();
@@ -112,13 +130,22 @@ function Threads({ onNavigate, searchRef }: { onNavigate: () => void; searchRef:
                 const pinned = pins.has(c.conversation_id);
                 return (
                   <li key={c.conversation_id} className="group relative">
-                    <Link to={`/assistant?c=${c.conversation_id}`} title={c.title} onClick={onNavigate}
+                    {renaming?.id === c.conversation_id ? (
+                      <form onSubmit={(e) => { e.preventDefault(); saveRename(); }} className="px-1 py-1">
+                        <input autoFocus value={renaming.draft} maxLength={80} disabled={rename.isPending}
+                          aria-label={`New title for ${c.title}`}
+                          onChange={(e) => setRenaming({ id: c.conversation_id, draft: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setRenaming(null); } }}
+                          onBlur={saveRename}
+                          className="w-full rounded-lg border border-scrub/50 bg-paper px-2 py-1.5 text-sm outline-none" />
+                      </form>
+                    ) : <Link to={`/assistant?c=${c.conversation_id}`} title={c.title} onClick={onNavigate}
                       aria-current={current ? "page" : undefined}
-                      className={`block truncate rounded-lg py-2 pl-2.5 pr-16 text-sm transition-colors ${
+                      className={`block truncate rounded-lg py-2 pl-2.5 pr-24 text-sm transition-colors ${
                         current ? "bg-bubble font-medium text-ink" : "text-ink/85 hover:bg-bubble/70 hover:text-ink"}`}>
                       {c.title}
-                    </Link>
-                    {confirming === c.conversation_id ? (
+                    </Link>}
+                    {renaming?.id === c.conversation_id ? null : confirming === c.conversation_id ? (
                       <div className="pop absolute inset-y-0 right-0 flex items-center gap-1 rounded-lg bg-bubble pl-2 pr-1">
                         <button type="button" aria-label={`Confirm delete ${c.title}`} disabled={remove.isPending}
                           onClick={() => remove.mutate(c.conversation_id)}
@@ -138,6 +165,11 @@ function Threads({ onNavigate, searchRef }: { onNavigate: () => void; searchRef:
                           className="grid size-6 place-items-center rounded-md text-ink-soft hover:bg-rule hover:text-ink">
                           {pinned ? <PinOff aria-hidden size={13} /> : <Pin aria-hidden size={13} />}
                         </button>
+                        <button type="button" aria-label={`Rename ${c.title}`} title="Rename"
+                          onClick={() => { rename.reset(); setConfirming(null); setRenaming({ id: c.conversation_id, draft: c.title }); }}
+                          className="grid size-6 place-items-center rounded-md text-ink-soft hover:bg-rule hover:text-ink">
+                          <PencilLine aria-hidden size={13} />
+                        </button>
                         <button type="button" aria-label={`Delete ${c.title}`} title="Delete"
                           onClick={() => { remove.reset(); setConfirming(c.conversation_id); }}
                           className="grid size-6 place-items-center rounded-md text-ink-soft hover:bg-rule hover:text-failed">
@@ -154,6 +186,11 @@ function Threads({ onNavigate, searchRef }: { onNavigate: () => void; searchRef:
         {remove.isError && (
           <p role="alert" className="mx-2.5 mt-3 rounded-lg bg-alarm-wash px-2.5 py-1.5 text-xs text-failed">
             Couldn't delete the thread. Try again.
+          </p>
+        )}
+        {rename.isError && (
+          <p role="alert" className="mx-2.5 mt-3 rounded-lg bg-alarm-wash px-2.5 py-1.5 text-xs text-failed">
+            Couldn't rename the thread. Try again.
           </p>
         )}
         {filter && !groups.length && <p className="px-2.5 pt-4 text-sm text-ink-soft">No matching threads.</p>}

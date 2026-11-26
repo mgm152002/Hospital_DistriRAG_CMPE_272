@@ -1,0 +1,145 @@
+# Demo conversations for the hospital-leadership demo, played through the live API by scripts/seed_chats.py.
+# Every case is synthetic and contains no patient identifiers (PHI_MODE=block refuses those by design; one
+# showcase below demonstrates exactly that).
+#
+#   expect: answer     every turn must get a real, cited model answer; anything else is retried with backoff
+#   expect: guardrail  the point is the guardrail (refusal, banner, block, hidden source); any outcome but a
+#                      provider outage is kept
+conversations:
+  # ---- Dr. Priya Rao, Emergency Medicine attending ------------------------------------------------------------------
+  - persona: priya
+    title: "ED triage: possible sepsis escalation"
+    expect: answer
+    turns:
+      - "A febrile patient in triage has a heart rate of 125 and a blood pressure of 85/50. What does our sepsis protocol say we should check first?"
+      - "Which findings mean we escalate, and to whom?"
+  - persona: priya
+    title: "Stroke alert: defining last known well"
+    expect: answer
+    turns:
+      - "A patient arrived with sudden facial droop and slurred speech. How does our stroke alert protocol define last known well?"
+      - "How do I activate a stroke alert, and what happens next?"
+  - persona: priya
+    title: "Chest pain pathway: the first ten minutes"
+    expect: answer
+    turns:
+      - "What has to happen in the first ten minutes of our chest pain pathway?"
+      - "When does the pathway say to escalate, and what monitoring continues after that?"
+  - persona: priya
+    title: "Guardrail: the assistant will not diagnose"
+    expect: guardrail
+    turns:
+      - "Based on a fever, tachycardia and low blood pressure, does this patient have sepsis?"
+  - persona: priya
+    title: "Confidential reference kept inside the hospital"
+    expect: guardrail
+    turns:
+      - "When should anticoagulation reversal be considered, and how is it monitored?"
+
+  # ---- Sam Lee, Medical-Surgical RN ----------------------------------------------------------------------------------
+  - persona: sam
+    title: "Night shift: patient found on the floor"
+    expect: answer
+    turns:
+      - "On night shift I found a patient on the floor beside the bed. What are the steps after a fall?"
+      - "How often do I reassess fall risk afterwards?"
+      - "What should the prevention bundle include for a high-risk patient?"
+  - persona: sam
+    title: "Hand hygiene: rub versus soap and water"
+    expect: answer
+    turns:
+      - "How long should I rub my hands with alcohol-based hand rub?"
+      - "When do I have to use soap and water instead?"
+  - persona: sam
+    title: "Setting up C. difficile isolation"
+    expect: answer
+    turns:
+      - "What precautions do I need for a patient with C. difficile?"
+      - "What signage and transport rules apply, and when can precautions end?"
+  - persona: sam
+    title: "Low blood glucose on the ward"
+    expect: answer
+    turns:
+      - "What does our hypoglycemia protocol say to do when a patient's glucose is low and they can swallow?"
+      - "And what if the patient cannot swallow?"
+  - persona: sam
+    title: "Pressure injury prevention on a busy unit"
+    expect: answer
+    turns:
+      - "What is our repositioning schedule and prevention bundle for patients at risk of pressure injury?"
+      - "What do I need to document?"
+  - persona: sam
+    title: "Emergency: unresponsive and not breathing"
+    expect: guardrail
+    turns:
+      - "My patient is unresponsive and not breathing"
+  - persona: sam
+    title: "Privacy guard: patient identifiers are blocked"
+    expect: guardrail
+    turns:
+      - "Patient John Smith MRN 00482913 fell, what now?"
+
+  # ---- Jordan Kim, clinical pharmacist ---------------------------------------------------------------------------------
+  - persona: jordan
+    title: "Critical lab values: who calls whom"
+    expect: answer
+    turns:
+      - "How quickly must a critical lab value be communicated, and to whom?"
+      - "What has to be documented when the result is read back?"
+  - persona: jordan
+    title: "Restricted policy: controlled substance waste"
+    expect: guardrail
+    turns:
+      - "How is controlled substance waste witnessed and reconciled?"
+  - persona: jordan
+    title: "Guardrail: dose questions go to pharmacy"
+    expect: guardrail
+    turns:
+      - "How much heparin should I give a 70 kg patient?"
+
+  # ---- Riley Chen, patient access / front desk -------------------------------------------------------------------------
+  - persona: riley
+    title: "Family asking about evening visiting"
+    expect: answer
+    turns:
+      - "A family is asking about visiting this evening. What are the visiting hours and how many visitors can be at the bedside?"
+      - "Are there any restrictions they should know about?"
+  - persona: riley
+    title: "Booking a patient transport"
+    expect: answer
+    turns:
+      - "How do I request a transport to take a patient to radiology?"
+      - "What information do I need to include in the request?"
+  - persona: riley
+    title: "Heart failure discharge: when to call the clinic"
+    expect: answer
+    turns:
+      - "A family member is asking how much daily weight gain after a heart failure discharge means they should call."
+      - "What does the discharge sheet say about diet?"
+  - persona: riley
+    title: "Access control: clinical protocols stay hidden"
+    expect: guardrail
+    turns:
+      - "What are the sepsis screening criteria?"
+
+  # ---- Alex Morgan, clinical knowledge administrator -------------------------------------------------------------------
+  - persona: alex
+    title: "Policy check: gloves and hand hygiene"
+    expect: answer
+    turns:
+      - "What does the hand hygiene policy say about gloves?"
+      - "Does wearing gloves replace hand hygiene?"
+
+  # ---- Taylor Brooks, quality and compliance officer -------------------------------------------------------------------
+  - persona: taylor
+    title: "Two-identifier rule before care"
+    expect: answer
+    turns:
+      - "What does the patient identification policy require before giving medication or taking samples?"
+      - "Which identifiers are not acceptable?"
+  - persona: taylor
+    title: "Needlestick exposure: steps and reporting"
+    expect: answer
+    turns:
+      - "A staff member just had a needlestick injury. What are the immediate steps?"
+      - "How and when does it have to be reported?"

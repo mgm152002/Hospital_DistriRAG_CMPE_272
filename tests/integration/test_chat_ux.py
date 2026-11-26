@@ -287,3 +287,35 @@ async def test_provider_outage_still_answers_from_the_uploaded_resume_and_a_back
     # Experience and education are both background; either is a correct quote.
     assert any(t in follow_up["answer"] for t in ("trained new graduate nurses", "Bachelor of Science in Nursing"))
     assert follow_up["conversation_id"] == out["conversation_id"]
+
+
+# ---- renaming a conversation --------------------------------------------------------------------------------------
+
+async def test_a_renamed_conversation_keeps_its_new_title_in_the_list(api, pool):
+    first = final(await chat(api, "sam", "How long should I rub hands with alcohol-based hand rub?"))
+    cid = first["conversation_id"]
+    r = await api.patch(f"/api/conversations/{cid}", headers=as_user("sam"), json={"title": "  Hand rub timing  "})
+    assert r.status_code == 200 and r.json() == {"conversation_id": cid, "title": "Hand rub timing"}
+    listed = (await api.get("/api/conversations", headers=as_user("sam"))).json()
+    assert [c["title"] for c in listed if c["conversation_id"] == cid] == ["Hand rub timing"]
+    async with pool.connection() as conn:
+        row = await (await conn.execute(
+            "SELECT count(*) FROM audit_log WHERE action = 'conversation.renamed' AND target = %s", (cid,))).fetchone()
+    assert row[0] == 1
+
+
+async def test_a_title_with_patient_identifiers_is_stored_redacted(api):
+    cid = final(await chat(api, "sam", "What do I do after a needlestick injury?"))["conversation_id"]
+    body = (await api.patch(f"/api/conversations/{cid}", headers=as_user("sam"),
+                            json={"title": "Needlestick for MRN 4471203"})).json()
+    assert "4471203" not in body["title"] and "REDACTED" in body["title"]
+
+
+async def test_only_the_owner_can_rename_and_blank_titles_are_rejected(api):
+    cid = final(await chat(api, "sam", "What do I do after a needlestick injury?"))["conversation_id"]
+    assert (await api.patch(f"/api/conversations/{cid}", headers=as_user("riley"),
+                            json={"title": "Mine now"})).status_code == 404
+    assert (await api.patch(f"/api/conversations/{cid}", headers=as_user("sam"),
+                            json={"title": "   "})).status_code == 422
+    assert (await api.patch(f"/api/conversations/{cid}", headers=as_user("sam"),
+                            json={"title": "x" * 81})).status_code == 422

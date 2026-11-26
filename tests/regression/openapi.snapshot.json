@@ -119,6 +119,16 @@
     ],
     "body": []
   },
+  "PATCH /api/conversations/{conversation_id}": {
+    "params": [
+      "authorization",
+      "conversation_id",
+      "x-user-id"
+    ],
+    "body": [
+      "application/json"
+    ]
+  },
   "GET /api/deletions": {
     "params": [
       "authorization",

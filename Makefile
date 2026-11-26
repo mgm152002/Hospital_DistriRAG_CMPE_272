@@ -27,6 +27,8 @@ ux-eval:       ## persona x scenario evaluation of the running stack (ARGS: --re
 	python3 evals/ux/run.py --api $(UX_API) $(ARGS)
 clean-demo:    ## list test leftovers in the demo database (add ARGS=--apply to delete them)
 	$(TEST) run --rm --no-deps -e API_URL=$(API_URL) unit python scripts/clean_demo.py $(ARGS)
+seed-chats:    ## play and title the demo conversations in corpus/demo_chats.yaml (ARGS: --only sam, --replace)
+	$(TEST) run --rm --no-deps -e API_URL=$(API_URL) unit python scripts/seed_chats.py $(ARGS)
 seed-v2:
 	$(TEST) run --rm --no-deps -e API_URL=$(API_URL) unit python scripts/seed.py --v2
 eval:          ## evaluate the running, seeded stack with its configured provider
