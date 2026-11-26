@@ -1,4 +1,4 @@
-# Verification — 2026-11-26
+# Verification — 2026-11-26 (final)
 
 ## Final state
 
@@ -6,10 +6,11 @@
 | --- | --- |
 | GitHub Actions CI on `main` | All jobs green: lint, unit, integration, regression, web, both image builds, dependency audit |
 | Backend lint and mypy | Passed; 87 source files |
-| Backend unit suite | 410 passed, 5 subtests passed |
-| Integration suite (real Postgres, Redis, SeaweedFS S3, Azurite) | 153 passed |
+| Backend unit suite | 412 passed, 5 subtests passed |
+| Integration suite (real Postgres, Redis, SeaweedFS S3, Azurite) | 156 passed |
 | Regression suite (acceptance AT-01…AT-24, API contract snapshot, eval gates) | 36 passed |
-| Frontend suite (Vitest) | 95 passed; production build passes |
+| Frontend suite (Vitest) | 96 passed; production build passes |
+| Functional browser suite FT-01…FT-12 (live GCP) | 12 passed in 18.8 s; screenshots in `docs/screenshots/functional/` |
 | Requirement coverage matrix | 68/68 *Must* requirements covered |
 | Dependency audit | `pip-audit` clean; `npm audit --audit-level=high` clean (2 moderate react-router advisories remain) |
 | GCP deployment | Continuous deployment from `main` to Compute Engine; `/readyz` reports Postgres and Redis ready at http://35.184.233.38 |

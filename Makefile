@@ -55,7 +55,7 @@ test-e2e:      ## browser test of the demo storyline against a running stack (BA
 	$(TEST) run --rm --no-deps e2e
 test-functional: ## FT-01..FT-12 in a real browser against BASE_URL, with a screenshot per test (copied to docs/screenshots)
 	$(TEST) run --rm --no-deps -e BASE_URL=$(BASE_URL) -e SHOTS=e2e/functional/screenshots e2e sh -c \
-	  "npm install --no-audit --no-fund --loglevel=error && npx playwright test e2e/functional.spec.ts --reporter=list,html"
+	  "npm install --no-audit --no-fund --loglevel=error && npx playwright test e2e/functional.spec.ts --reporter=list,html && node e2e/report-screenshot.mjs"
 	mkdir -p docs/screenshots/functional && cp web/e2e/functional/screenshots/*.png docs/screenshots/functional/
 regression:
 	$(TEST) run --rm integration pytest -q -m regression tests/regression

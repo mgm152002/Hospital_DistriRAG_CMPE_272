@@ -26,20 +26,26 @@ async function signInAs(page: Page, name: string) {
   await expect(page.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
 }
 
-/** Ask the assistant one question and wait for the final answer (every reply ends with the reference-only line). */
+/** Ask the assistant one question and wait for the final answer. */
 async function ask(page: Page, persona: string, question: string) {
   await page.goto("/assistant");
   await page.getByRole("textbox", { name: "Ask about a policy or procedure" }).fill(question);
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   const log = page.getByRole("log");
-  await expect(log.getByText("Checking approved documents…")).toHaveCount(0, { timeout: 90_000 });
-  await expect(log.getByText(/Reference only\.|Not sent/).last()).toBeVisible({ timeout: 90_000 });
-  const id = new URL(page.url()).searchParams.get("c");
-  if (id) created.push({ persona, id });
+  try {
+    await expect(log.getByText("Checking approved documents…")).toHaveCount(0, { timeout: 90_000 });
+    // A finished reply ends with its footer, "<model> · <seconds>s"; previews and streaming text do not.
+    await expect(log.getByText(/ · \d+(\.\d+)?s$/).last()).toBeVisible({ timeout: 90_000 });
+  } finally {
+    // Record the conversation even when an assertion fails, so afterAll still removes it.
+    const id = new URL(page.url()).searchParams.get("c");
+    if (id) created.push({ persona, id });
+  }
   return log;
 }
 
-const shot = (page: Page, name: string) => page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true });
+const shot = (page: Page, name: string) =>
+  page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true, animations: "disabled" }); // no half-faded text
 
 test.afterAll(async () => {
   await removeDocuments([policy]);
@@ -70,7 +76,8 @@ test("FT-02 a document admin uploads a policy, which waits for approval", async 
   await page.getByLabel("Title").fill(policy);
   await page.getByLabel("Category").selectOption("Operational Workflow");
   await page.getByRole("button", { name: "Next" }).click();
-  await page.getByRole("checkbox", { name: "all-staff" }).check();
+  await page.getByText("Everyone on staff", { exact: true }).click(); // the styled label; the input is visually hidden
+  await expect(page.getByRole("checkbox", { name: "all-staff" })).toBeChecked();
   await page.getByRole("button", { name: "Next" }).click();
   await page.getByRole("button", { name: "Submit for approval" }).click();
   await expect(page.getByText("Waiting for approval").first()).toBeVisible();
@@ -119,7 +126,10 @@ test("FT-07 a question with patient identifiers is refused before search (PHI gu
   await signInAs(page, "Sam Lee");
   const log = await ask(page, "sam", "Patient John Smith MRN 00482913 fell, what now?");
   await expect(log.getByText(/Not sent/).first()).toBeVisible();
-  await expect(log.getByText("00482913")).toHaveCount(0);
+  // The person's own bubble echoes what they typed; what is stored (and listed in the sidebar) is redacted.
+  const recents = page.getByRole("navigation", { name: "Recent conversations" });
+  await expect(recents.getByText(/\[REDACTED-NAME\]/).first()).toBeVisible();
+  await expect(recents.getByText(/00482913/)).toHaveCount(0);
   await shot(page, "FT-07-phi-blocked");
 });
 

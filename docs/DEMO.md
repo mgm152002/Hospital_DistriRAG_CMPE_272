@@ -1,5 +1,18 @@
 # Demo script (12 minutes)
 
+**Live leadership demo (http://35.184.233.38).** The deployment is pre-loaded, so nothing needs to be typed live
+unless you want to:
+
+- 24 approved policies (`make seed`) and two drafts waiting in Taylor's approval queue (`make seed-review`): the
+  Central Line Bundle and Workplace Violence Prevention.
+- 22 titled conversations across Priya, Sam, Jordan, Riley, Alex and Taylor (`make seed-chats`, from
+  `corpus/demo_chats.yaml`). Open them from the sidebar. Cited clinical answers: *ED triage: possible sepsis escalation*,
+  *Stroke alert*, *Night shift: patient found on the floor*, *Setting up C. difficile isolation*. Guardrail showcases:
+  *Guardrail: the assistant will not diagnose*, *Privacy guard: patient identifiers are blocked*, *Emergency:
+  unresponsive and not breathing*, *Access control: clinical protocols stay hidden*, *Confidential reference kept
+  inside the hospital*.
+- Keep `make seed-v2` for the live "new version replaces the old one" moment in step 3.
+
 Before: `echo LLM_PROVIDER=fake > .env && make up && make seed` (do **not** run `make seed-v2` yet). Open the app in
 one browser window; switch people with **Switch person** in the bottom-left corner.
 
