@@ -1,17 +1,13 @@
-# DistriRAG: deploy to GCP.
-# Route: build the runtime image once, push it to Artifact Registry, and roll it out
-# to the GCE VM that runs deploy/docker-compose.yml + deploy/cloud/docker-compose.cloud.yml
-# (Caddy HTTPS). No long-lived GCP keys: Workload Identity Federation (deploy/gcp/README.md).
-#
-# Triggers: after the `ci` workflow passes on a push to main, or manually.
-# Until the GCP repository variables are set (GCP_PROJECT etc.), every job is skipped,
-# so pushes before setup stay green.
+# DistriRAG: continuous deployment to GCP.
+# Every push to main builds the runtime image, pushes it to Artifact Registry tagged with the
+# commit SHA, creates the GCE VM on first run, and rolls the new image out to it.
+# GitHub reaches GCP through Workload Identity Federation: no service-account keys are stored.
+# One-time setup: deploy/gcp/setup.sh (see deploy/gcp/README.md).
 name: deploy-gcp
 on:
-  workflow_run:
-    workflows: [ci]
-    types: [completed]
+  push:
     branches: [main]
+    paths-ignore: ["**.md", "docs/**", "evals/**", "tests/**", "web/e2e/**"]
   workflow_dispatch:
 
 concurrency:
@@ -23,28 +19,22 @@ permissions:
   id-token: write             # required for Workload Identity Federation
 
 env:
-  GCP_PROJECT: ${{ vars.GCP_PROJECT }}       # e.g. distrirag-prod
-  GCP_REGION: ${{ vars.GCP_REGION }}         # e.g. us-central1
-  GCP_ZONE: ${{ vars.GCP_ZONE }}             # e.g. us-central1-a
-  GCP_VM: ${{ vars.GCP_VM }}                 # e.g. distrirag-vm
-  GCP_DOMAIN: ${{ vars.GCP_DOMAIN }}         # public hostname served by Caddy
-  AR_REPO: ${{ vars.GCP_AR_REPO || 'distrirag' }}
-  # The commit to deploy: the one CI tested, or the dispatched ref.
-  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+  GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+  GCP_ZONE: ${{ vars.GCP_ZONE || 'us-central1-a' }}
+  GCP_VM: ${{ vars.GCP_VM || 'distrirag-vm' }}
+  GCP_MACHINE: ${{ vars.GCP_MACHINE || 'e2-medium' }}
+  GCP_AR_REPO: ${{ vars.GCP_AR_REPO || 'distrirag' }}
+  GCP_DOMAIN: ${{ vars.GCP_DOMAIN }}           # optional; empty serves plain HTTP on the VM's IP
 
 jobs:
   build-and-push:
-    # Deploy only commits whose CI passed on a push (not nightly or PR runs), and only once configured.
-    if: >-
-      vars.GCP_PROJECT != '' &&
-      (github.event_name == 'workflow_dispatch' ||
-       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    if: vars.GCP_PROJECT != ''   # skipped until setup.sh has configured the repository
     runs-on: ubuntu-24.04
     outputs:
       image_tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
-        with: { ref: "${{ env.DEPLOY_SHA }}" }
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
@@ -52,7 +42,7 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - run: gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
       - id: tag
-        run: echo "tag=$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/$AR_REPO/app:$DEPLOY_SHA" >> "$GITHUB_OUTPUT"
+        run: echo "tag=$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/$GCP_AR_REPO/app:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
@@ -63,7 +53,7 @@ jobs:
           tags: ${{ steps.tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # The image only ships if it starts Python and imports the app cleanly.
+      # The image only ships if it imports the app cleanly.
       - run: docker run --rm "${{ steps.tag.outputs.tag }}" python -c "import run; print('image imports ok')"
       - run: docker push "${{ steps.tag.outputs.tag }}"
 
@@ -72,33 +62,52 @@ jobs:
     runs-on: ubuntu-24.04
     environment: production
     steps:
+      - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
       - uses: google-github-actions/setup-gcloud@v2
-      - name: Roll out on the VM
+      - run: gcloud config set project "$GCP_PROJECT"
+
+      - name: Create the VM on first deploy
+        run: |
+          if gcloud compute instances describe "$GCP_VM" --zone="$GCP_ZONE" >/dev/null 2>&1; then
+            echo "VM $GCP_VM exists"; exit 0
+          fi
+          gcloud compute instances create "$GCP_VM" --zone="$GCP_ZONE" \
+            --machine-type="$GCP_MACHINE" \
+            --image-family=ubuntu-2404-lts-amd64 --image-project=ubuntu-os-cloud \
+            --boot-disk-size=30GB --boot-disk-type=pd-balanced \
+            --address=distrirag-ip --tags=distrirag \
+            --service-account="distrirag-vm@$GCP_PROJECT.iam.gserviceaccount.com" --scopes=cloud-platform \
+            --metadata=enable-oslogin=TRUE,repo-url=https://github.com/${{ github.repository }}.git \
+            --metadata-from-file=startup-script=deploy/gcp/vm-startup.sh
+
+      - name: Wait for the VM to finish provisioning
+        run: |
+          for i in $(seq 1 40); do
+            gcloud compute ssh "$GCP_VM" --zone="$GCP_ZONE" --quiet --command 'test -f /var/lib/distrirag-ready' 2>/dev/null && exit 0
+            sleep 15
+          done
+          echo "VM never became ready"; exit 1
+
+      - name: Roll out the new image
         env:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          APP_ENV: ${{ secrets.APP_ENV }}
         run: |
-          gcloud compute ssh "$GCP_VM" --project="$GCP_PROJECT" --zone="$GCP_ZONE" --quiet --command "
+          printf '%s' "$APP_ENV" | gcloud compute ssh "$GCP_VM" --zone="$GCP_ZONE" --quiet --command "
             set -euo pipefail
-            cd /opt/distrirag
-            sudo git -c safe.directory=/opt/distrirag fetch --quiet origin $DEPLOY_SHA
-            sudo git -c safe.directory=/opt/distrirag checkout --quiet --detach $DEPLOY_SHA
-            sudo gcloud auth configure-docker $GCP_REGION-docker.pkg.dev --quiet
-            export IMAGE_TAG=$IMAGE_TAG DOMAIN=$GCP_DOMAIN
-            DC='sudo -E docker compose -f deploy/docker-compose.yml -f deploy/cloud/docker-compose.cloud.yml --profile lite'
-            \$DC pull app
-            \$DC up -d --no-build app caddy
-            # The cloud overlay does not publish port 8000, so check readiness from inside the container.
-            for i in \$(seq 1 60); do
-              \$DC exec -T app python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz', timeout=3)\" && exit 0
-              sleep 3
-            done
-            echo 'app never became ready'; \$DC logs --tail=100 app; exit 1
+            sudo git -C /opt/distrirag -c safe.directory=/opt/distrirag fetch --quiet origin $GITHUB_SHA
+            sudo git -C /opt/distrirag -c safe.directory=/opt/distrirag checkout --quiet --force --detach $GITHUB_SHA
+            sudo IMAGE_TAG=$IMAGE_TAG DOMAIN=$GCP_DOMAIN bash /opt/distrirag/deploy/gcp/rollout.sh
           "
+
       - name: Smoke-test the public URL
         run: |
-          for i in $(seq 1 30); do curl -sf "https://$GCP_DOMAIN/readyz" && exit 0; sleep 10; done
-          echo "https://$GCP_DOMAIN/readyz did not answer"; exit 1
+          if [ -n "$GCP_DOMAIN" ]; then URL="https://$GCP_DOMAIN"; else
+            URL="http://$(gcloud compute addresses describe distrirag-ip --region="$GCP_REGION" --format='value(address)')"
+          fi
+          for i in $(seq 1 30); do curl -sf "$URL/readyz" && { echo "live at $URL" >> "$GITHUB_STEP_SUMMARY"; exit 0; }; sleep 10; done
+          echo "$URL/readyz did not answer"; exit 1
