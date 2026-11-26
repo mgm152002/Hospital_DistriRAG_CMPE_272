@@ -1,8 +1,29 @@
-# Verification — 2026-11-25
+# Verification — 2026-11-26
 
-The local app is running in Docker at **http://localhost:8080**. Docker and network access are available; earlier
-socket and DNS blockers no longer apply. These results describe the current working tree, not a GitHub CI run.
-No push or merge has been performed. Full original-proposal sign-off remains open for the gaps below.
+## Final state
+
+| Check | Result |
+| --- | --- |
+| GitHub Actions CI on `main` | All jobs green: lint, unit, integration, regression, web, both image builds, dependency audit |
+| Backend lint and mypy | Passed; 87 source files |
+| Backend unit suite | 410 passed, 5 subtests passed |
+| Integration suite (real Postgres, Redis, SeaweedFS S3, Azurite) | 153 passed |
+| Regression suite (acceptance AT-01…AT-24, API contract snapshot, eval gates) | 36 passed |
+| Frontend suite (Vitest) | 95 passed; production build passes |
+| Requirement coverage matrix | 68/68 *Must* requirements covered |
+| Dependency audit | `pip-audit` clean; `npm audit --audit-level=high` clean (2 moderate react-router advisories remain) |
+| GCP deployment | Continuous deployment from `main` to Compute Engine; `/readyz` reports Postgres and Redis ready at http://35.184.233.38 |
+| Live corpus | 24 synthetic documents uploaded, approved and READY in 6.6 s through the public API |
+
+`PHI_MODE=block` is the default: a question containing patient identifiers is refused before search. Tests that cover
+the redact path (identifiers removed, question still answered) set `phi_mode="redact"` explicitly.
+
+The sections below record the earlier local verification of 2026-11-25. They are kept for traceability; the counts
+in them predate the final state above.
+
+# Local verification — 2026-11-25
+
+The local app ran in Docker at **http://localhost:8080**. These results describe the working tree at that date.
 
 ## Login and administration
 
@@ -79,7 +100,8 @@ passage, a cited answer, confidence 68, and passed citation/clinical/injection c
 - Embeddings expose hashing and local MiniLM; Ollama and OpenAI-compatible embedding adapters remain absent.
 - Backend OIDC validation and existing identity bootstrap are supported; full browser SSO redirect/token integration
   remains unfinished. Local registration has no email-verification or password-recovery workflow.
-- Live cloud deployment/cost evidence, GitHub required checks, full real-provider acceptance, current Lighthouse
-  scores, timed rehearsals and a backup recovery recording remain unverified.
+- The live GCP deployment is a single `e2-medium` VM over plain HTTP; HTTPS needs a domain (`GCP_DOMAIN`). GitHub
+  required checks (branch protection), full real-provider acceptance, current Lighthouse scores, timed rehearsals and
+  a backup recovery recording remain unverified.
 
 These are outstanding proposal work; successful local login/admin tests do not close them.

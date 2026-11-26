@@ -1,128 +1,203 @@
-# DistriRAG
+# DistriRAG: A Fault-Tolerant Distributed Retrieval Pipeline for Hospital Knowledge
 
-DistriRAG indexes approved hospital policies and procedures through a reliable outbox → Redis Streams pipeline, and
-lets staff find them with source-aware search and a guarded clinical-reference assistant. Every result shows its source
-document and version; the assistant cites every claim, shows a confidence score, and never diagnoses or prescribes.
+**CMPE 273: Enterprise Distributed Systems · Master's Final Project · San José State University · Fall 2026**
+
+**Team:** Manoj Ganjigatte Manjunatha · Prajval Sudhir · Vinayak Gupta
+
+**Live deployment:** http://35.184.233.38 (Google Cloud, continuously deployed from `main`)
+
+---
+
+## Abstract
+
+Hospital staff need the *current, approved* version of a policy within seconds, and an assistant that answers from it
+must never invent, diagnose or leak patient data. DistriRAG is a distributed retrieval-augmented generation (RAG)
+system built around that requirement. Documents move through an approval workflow and a **transactional-outbox →
+Redis Streams → worker pool** pipeline into PostgreSQL with pgvector. A version becomes searchable only once every
+chunk is embedded, and it replaces its predecessor atomically. The pipeline survives worker crashes, relay crashes,
+broker restarts and broker data loss with **zero lost documents and zero duplicate vectors**, which we verify with
+fault-injection tests that SIGKILL real processes. A rules-first guardrail layer screens questions for protected
+health information (PHI), refuses diagnoses and patient-specific orders, verifies every citation, and records an
+auditable receipt for each answer. The full stack runs in about **106 MiB of RAM** on a laptop and deploys to GCP
+through a keyless CI/CD pipeline.
 
 All documents in this repository are **synthetic**. DistriRAG is a reference tool: it does not diagnose patients,
 recommend treatment, or replace clinical judgement.
 
-## Run it (weak hardware is fine)
+## Problem and motivation
+
+- **Stale or unapproved answers are dangerous.** Search has to respect approval state, versions and access rights
+  inside the query itself, not as a post-filter.
+- **Ingestion must not lose or duplicate work.** A crashed worker, a broker restart or a duplicate delivery must
+  neither drop a document nor create duplicate vectors that skew retrieval.
+- **LLMs need guardrails a compliance officer can audit.** Every refusal, redaction and outbound model call should be
+  explainable after the fact.
+- **Hospitals have weak hardware and air-gapped networks.** The system has to run without a GPU, without model
+  downloads, and without internet access.
+
+## Distributed-systems contributions
+
+| Concern | Technique used in DistriRAG |
+| --- | --- |
+| Atomic state change + message publish | **Transactional outbox**: the state change and the outbox row share one Postgres transaction; a relay copies rows to Redis with `XADD` |
+| Work distribution | **Redis Streams consumer groups** (`ingest.extract`, `ingest.embed`, `ingest.finalize`, `docs.delete`) with competing consumers |
+| At-least-once delivery, exactly-once effect | **ACK after commit**, deterministic chunk ids (`uuid5(version, index)`), upserts and `Idempotency-Key` on uploads |
+| Failure detection and recovery | Pending-entry reclaim (`XCLAIM`) with exponential backoff, **dead-letter streams** after 5 deliveries, re-drive of stuck versions from Postgres as the source of truth |
+| Consistent reads during writes | A version is published only when every chunk has a vector; one transaction supersedes the old version and clears dependent caches |
+| Concurrency control | Row locks on documents during finalization; separation of duties (the uploader can never approve) |
+| Deployment flexibility | One image, four roles (`api`, `relay`, `worker`, `recovery`), run as one process (`lite`) or as separate containers (`full`) |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    user([Staff browser]) --> api
+    subgraph app["DistriRAG image"]
+        api["API (FastAPI)<br/>auth · upload · approve · search · chat SSE · ops"]
+        relay["Relay<br/>outbox → XADD"]
+        workers["Workers<br/>extract · chunk · embed · finalize · delete"]
+        recovery["Recovery<br/>reclaim · dead letters · re-drive · retention"]
+    end
+    pg[("PostgreSQL + pgvector<br/>documents · versions · chunks · vectors<br/>outbox · audit · conversations")]
+    redis[("Redis Streams<br/>ingest.* · docs.delete · *.dlq")]
+    blob[("Blob store<br/>local · S3 · Azure")]
+    llm["Model provider<br/>none · fake · Ollama · OpenAI-compatible"]
+    api -- "state + outbox in one transaction" --> pg
+    pg -- "unpublished rows" --> relay --> redis
+    redis -- "XREADGROUP" --> workers
+    workers -- "commit, then XACK" --> pg
+    recovery -- "XCLAIM · dead-letter" --> redis
+    recovery -- "re-drive stuck versions" --> pg
+    api & workers --> blob
+    api -- "egress-checked" --> llm
+```
+
+**Document flow:** upload → approval by a different person → outbox → relay → extract and chunk → embed in batches of
+16 → finalize (atomic version swap) → searchable.
+**Question flow:** PHI screen → rules-first classifier → emergency banner → permission-filtered hybrid retrieval →
+refusal of diagnoses and orders → egress policy → generation → redaction → citation verification → confidence score
+→ audited receipt.
+Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Results
+
+Measured on the `lite` profile (hashing embedder, fake LLM, 24 synthetic documents plus 4 second versions). Full
+numbers and method: [docs/RESULTS.md](docs/RESULTS.md).
+
+| Area | Result |
+| --- | --- |
+| Memory footprint (app + Postgres + Redis) | **105.8 MiB** total; runtime image 322 MB, no PyTorch |
+| Ingestion | 24 documents approved and READY in 6.6 s on the GCP deployment |
+| Fault injection (17 scenarios × 3 runs) | 17/17 each run: worker SIGKILL mid-batch, relay crash after `XADD`, Redis restart, Redis data loss, duplicate delivery; **0 lost documents, 0 duplicate vectors** |
+| Guardrail eval (85 cases) | 0 unsafe outputs, 0 permission leaks, 0 PHI leaks; classification 1.000; citation validity 1.000; retrieval hit@5 1.000 |
+| Requirement coverage | 68/68 *Must* requirements mapped to tests (`make coverage-matrix`) |
+
+## Live demo
+
+Open **http://35.184.233.38** and choose a demo card. Every account is fictional.
+
+| Account | Role | Try this |
+| --- | --- | --- |
+| Alex Morgan | Document admin | Library → New document: upload a policy, compare versions, view analytics |
+| Taylor Brooks | Compliance | Approve or reject Alex's upload; browse the audit log |
+| Sam Lee | Nurse | Search "how long should I rub hands with alcohol"; ask the assistant |
+| Dr. Priya Rao | Physician | "What are our sepsis screening criteria?" (cited, with a confidence score and receipt) |
+| Jordan Kim | Pharmacist | Medication policies; dose questions are routed to pharmacy, not answered |
+| Riley Chen | General staff | Search "controlled substance waste" and get nothing: access rules are applied inside the query |
+| Casey Diaz | Operations | Pipeline board: kill a worker and watch the reclaim, with 0 duplicates and 0 lost |
+
+The 12-minute presentation script is in [docs/DEMO.md](docs/DEMO.md).
+
+## Run it locally
+
+Everything runs in Docker; you need Docker with Compose v2, `make` and `git`.
 
 ```bash
+git clone https://github.com/mgm152002/Cmpe273_DistriRag.git && cd Cmpe273_DistriRag
 cp .env.example .env      # lite profile: no models to download, no keys
-make up                   # postgres + redis + one app process, about 110 MB of RAM in use
+make up                   # postgres + redis + one app process
 make seed                 # upload and approve the 24 synthetic hospital documents
 open http://localhost:8000
 ```
 
-The login page supports email/password sign-in, registration and seven fictional demo accounts. Port 8000 busy?
-Set `PORT=8080` in `.env`, run `make up`, then `API_URL=http://host.docker.internal:8080 make seed`.
-
-## Accounts and the admin panel
-
-Choose a demo card to enter immediately, or use its email and the default demo password `DemoAccess!2026`.
-
-| Account | Email | Use it for |
-| --- | --- | --- |
-| Alex Morgan | `alex@distrirag.demo` | Admin analytics, document uploads, new versions and comparisons |
-| Taylor Brooks | `taylor@distrirag.demo` | Approval/rejection queue, analytics, audit and compliance |
-| Sam Lee | `sam@distrirag.demo` | Nursing search and assistant |
-| Dr. Priya Rao | `priya@distrirag.demo` | Physician search and assistant |
-| Jordan Kim | `jordan@distrirag.demo` | Pharmacy search and assistant |
-| Riley Chen | `riley@distrirag.demo` | General staff search and assistant |
-| Casey Diaz | `casey@distrirag.demo` | Pipeline monitoring and recovery |
-
-**Alex uploads; Taylor approves or rejects.** Each new version needs approval. The current published version remains
-available until the replacement is fully indexed. The admin panel shows document/version counts, pending approvals,
-failures, accounts, usage trends, category distribution, activity, version history and a text comparison.
-
-Registration grants general-staff access only. Sessions persist through refresh and are revoked on sign-out.
-Passwords use salted scrypt; session cookies are HttpOnly and SameSite=Lax. `AUTH_MODE=local` enables accounts;
-`header` retains the original persona demo and `oidc` retains server-side identity-provider validation.
-Disable `DEMO_ACCOUNTS_ENABLED` outside a synthetic demo. `REGISTRATION_ENABLED` controls public registration;
-`AUTH_SESSION_HOURS` defaults to 12 and `AUTH_COOKIE_SECURE=true` is required behind HTTPS. Set the demo password
-before the first startup if desired; changing it later does not reset existing accounts.
+Port 8000 busy? Set `PORT=8080` in `.env`, run `make up`, then `API_URL=http://host.docker.internal:8080 make seed`.
 
 | Profile | Answers from | Embeddings | Use it for |
 | --- | --- | --- | --- |
-| `lite` (default) | none (passages only) or `LLM_PROVIDER=fake` | hashing, no download | weak laptops, CI, demos without a model |
+| `lite` (default) | none (passages only) or `LLM_PROVIDER=fake` | hashing, no download | laptops, CI, demos |
 | `airgapped` | local Ollama | MiniLM (ONNX, baked into the image) | no network at all |
 | `hybrid` | external API, behind the egress policy | MiniLM | a small cloud VM |
 | `cloud` | managed API | MiniLM | managed database and storage |
 
-## What is inside
+The chat model is chosen with `LLM_PROVIDER` (`openrouter-free` for OpenRouter's free models, or `local-proxy` for an
+OpenAI-compatible proxy). An administrator can switch providers and models at runtime under **Settings**. Every
+option is documented in [.env.example](.env.example).
 
-- **Pipeline:** upload → approval (by a different person) → outbox row in the same transaction → relay → Redis Streams
-  → workers (extract, chunk, embed in batches of 16, finalize) → pgvector. A version becomes searchable only when every
-  chunk is embedded, and replaces the previous version atomically.
-- **Reliability:** ACK after commit, deterministic chunk ids, idempotency keys, reclaim with exponential backoff,
-  dead letters after 5 deliveries, re-drive of stuck versions from Postgres, and recovery drills in the UI.
-- **Assistant guardrails:** PHI screening, rules-first question classifier, emergency banner, permission-filtered
-  retrieval, egress policy by document classification, injection stripping, citation verification, a
-  diagnosis/order blocker, a computed confidence score, and a receipt on every answer.
-- **Frontend:** search, assistant, document reader with version history, library and upload wizard, compliance
-  (approvals, audit log, data and egress, deletions), and a live pipeline board with recovery drills.
+## Testing and CI
 
-## OpenRouter chatbot settings
+| Suite | Command | Count |
+| --- | --- | --- |
+| Lint and types (ruff, mypy) | `make lint` | 87 source files |
+| Unit | `make test` | 410 tests |
+| Integration (real Postgres, Redis, S3 and Azure emulators, fault injection) | `make test-integration` | 153 tests |
+| Regression (24 acceptance scenarios, API contract snapshot, eval gates) | `make regression` | 36 tests |
+| Frontend (Vitest) | `make test-web` | 95 tests |
+| End-to-end (Playwright, nightly) | `make test-e2e` | demo storyline |
 
-Sign in as **Alex** or **Taylor** and open **Settings** to choose a free model or replace the API key. Leave the
-replacement field blank to keep the saved key. Changes apply to new questions without a restart; the setting is
-shared across the application. Other staff can view the active settings.
+GitHub Actions runs every suite on each push, together with dependency audits (`pip-audit`, `npm audit`) and image
+builds. Fresh results are recorded in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
-**Network access** has an **Allow external AI network access** switch. Off blocks both chatbot and model-catalog
-requests to OpenRouter, including requests queued before a settings change. Local search remains available. On permits
-the official `openrouter.ai` HTTPS host; it does not permit arbitrary hosts. Air-gapped deployments lock the switch off.
-Requests already sent before switching off may finish. The saved key is preserved while network access is off.
+## Deployment (GCP)
 
-The default is `openrouter/free`, OpenRouter's [automatic free-model router](https://openrouter.ai/docs/guides/routing/routers/free-router).
-The model picker lists only explicit free variants with zero catalog prices. Every OpenRouter chat request also
-sets zero price caps, and no paid fallback model is sent. Rate limits or outages use the existing passages-only
-fallback. Document classification, PHI screening and clinical guardrails continue to apply.
+Every push to `main` triggers [`deploy-gcp.yml`](.github/workflows/deploy-gcp.yml). It builds the image, pushes it to
+Artifact Registry tagged with the commit SHA, creates the Compute Engine VM on the first run, rolls the new image out
+over OS Login, and smoke-tests `/readyz` on the public IP. GitHub authenticates through **Workload Identity
+Federation**, so no service-account key exists. App settings come from the `APP_ENV` repository secret. Setup and
+rollback: [deploy/gcp/README.md](deploy/gcp/README.md).
 
-For initial setup, set `LLM_PROVIDER=openrouter-free`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL=openrouter/free` and
-include `openrouter.ai` in `ALLOWED_HOSTS` in the ignored `.env`. Keep `SYNTHETIC_DATA_ONLY=true`. The API key is never
-returned by the settings API or embedded in frontend files. Replacements are kept in a mode-600 server settings file;
-Docker persists it in the private `chat_settings` volume. The local default directory is the ignored `data/settings/`.
+## Repository layout
 
-To route answers through **CLIProxyAPI**, set `LLM_PROVIDER=local-proxy`,
-`LOCAL_PROXY_BASE_URL=http://host.docker.internal:8317/v1`, `LOCAL_PROXY_MODEL=gpt-6-luna`, and
-`LOCAL_PROXY_API_KEY` to the proxy's client key in `.env`. Add `host.docker.internal` to `ALLOWED_HOSTS`, then run
-`make up`. A process running directly on macOS can use `http://127.0.0.1:8317/v1` instead. Settings will show the proxy's
-models and store proxy model/key changes separately from OpenRouter. The network switch and document-classification
-checks still apply because the proxy forwards requests to upstream accounts. Proxy requests use those accounts' quota;
-OpenRouter's free-model policy applies only when OpenRouter is the active provider.
+| Folder | Holds |
+| --- | --- |
+| `api/` | FastAPI app, routes, local and OIDC authentication |
+| `documents/` | Intake, approval and read models |
+| `pipeline/` | Outbox, relay, stream consumers, ingestion stages, recovery, drills |
+| `search/` | Hybrid vector and lexical search, clinical abbreviation expansion |
+| `assistant/` | Guardrails, PHI screening, prompt, citations, confidence, chat pipeline |
+| `common/` | Configuration profiles, database, providers (blob, embedding, LLM), egress guard, metrics |
+| `web/` | React + TypeScript frontend |
+| `corpus/`, `evals/`, `tests/` | Synthetic documents, evaluation sets, test suites |
+| `deploy/` | SQL migrations, Compose files, VM and GCP deployment |
 
-## Tests
-
-Fresh checks and remaining proposal sign-off work are recorded in [docs/VERIFICATION.md](docs/VERIFICATION.md).
-
-`make lint` · `make test` · `make test-integration` · `make regression` · `make test-web` · `make test-e2e`
-(Playwright against a running stack) · `make coverage-matrix` · `make footprint`.
-
-## Documents
+## Documentation
 
 | Document | Covers |
 | --- | --- |
-| [docs/PROPOSAL.md](docs/PROPOSAL.md) | The revised proposal: requirements, epics, acceptance tests |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, document and question flows, profiles |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | Why each major choice was made |
+| [docs/PROPOSAL.md](docs/PROPOSAL.md) | Project proposal: requirements, epics and acceptance tests |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, document and question flows, deployment profiles |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Design decisions and the alternatives we rejected |
+| [docs/RESULTS.md](docs/RESULTS.md) | Measured footprint, relevance calibration, eval and fault-injection results |
+| [docs/VERIFICATION.md](docs/VERIFICATION.md) | Latest test, CI and deployment evidence, and known gaps |
 | [docs/SECURITY.md](docs/SECURITY.md) | OWASP Top 10 for LLM applications, mapped to controls |
-| [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Data flows, HIPAA safeguards, what real PHI would require |
-| [docs/RESULTS.md](docs/RESULTS.md) | Measured footprint, calibration, eval and fault results |
-| [evals/ux/README.md](evals/ux/README.md) | Persona x scenario UX corpus, how to run it, and how its runs are logged |
+| [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Data flows, HIPAA safeguards, and what real PHI would require |
 | [docs/DEMO.md](docs/DEMO.md) | The 12-minute demo script and fallbacks |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Setup, tests, folder map, owners |
-| [deploy/cloud/README.md](deploy/cloud/README.md) | One small VM with HTTPS for under $25/month |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Developer setup, test commands, folder map |
+| [evals/ux/README.md](evals/ux/README.md) | Persona × scenario UX evaluation corpus and run logs |
+| [deploy/gcp/README.md](deploy/gcp/README.md) | Continuous deployment to Google Cloud |
+| [deploy/cloud/README.md](deploy/cloud/README.md) | Manual single-VM deployment with HTTPS (Caddy) |
 
-## Evaluating the assistant
+## Limitations and future work
 
-```bash
-make ux-eval ARGS="--gate"                # 60 persona turns against the running, seeded stack (UX_API, default :8000)
-make ux-eval ARGS="--repeat 3 --export-grading 20"   # variance, plus a CSV for clinicians to grade by hand
-make clean-demo                           # list test leftovers in the demo database; ARGS=--apply deletes them
-```
+- Browser SSO is partial: OIDC tokens are validated by the API, but the full redirect flow is unfinished. Local
+  accounts have no email verification or password recovery.
+- The application and retention database roles are not yet separated.
+- Embeddings run locally (hashing or MiniLM). Hosted embedding adapters are future work.
+- The live deployment is a single VM over plain HTTP. HTTPS is one variable away (`GCP_DOMAIN`), and managed Postgres
+  and Redis would remove the single point of failure.
 
-Each run is written to `evals/ux/runs/<run id>/` with the commit, model, corpus hash and every streamed event.
-`make regression` replays the same corpus in-process (no model, real Postgres) and gates on retrieval, refusals,
-redaction, emergency banners and access.
+The full list is in [docs/VERIFICATION.md](docs/VERIFICATION.md).
+
+## License and data
+
+Academic project for CMPE 273 at San José State University. All hospital documents, personas and patients in this
+repository are fictional.
