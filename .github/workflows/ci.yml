@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - run: echo "LLM_PROVIDER=fake" > .env
+      - run: printf "LLM_PROVIDER=fake\nPHI_MODE=redact\n" > .env   # the UX eval corpus expects the redact path
       - run: make up
       - run: |
           for i in $(seq 1 60); do curl -sf localhost:8000/readyz && break; sleep 2; done

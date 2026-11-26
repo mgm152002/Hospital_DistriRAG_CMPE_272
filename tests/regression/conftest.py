@@ -97,6 +97,7 @@ async def seeded(tmp_path_factory):
         redis,
         tmp_path_factory.mktemp("blobs"),
         llm_provider="fake",
+        phi_mode="redact",  # the eval corpora expect identifiers removed and the question still answered
         reclaim_base_idle_ms=300,
         stuck_after_seconds=2,
     )

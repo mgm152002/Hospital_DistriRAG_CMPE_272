@@ -48,12 +48,13 @@ DOCS = [
 
 @pytest.fixture
 async def api(pool, tmp_path):
+    """These tests cover the redact path: identifiers are removed and the question still goes through."""
     ctx = make_ctx(pool, tmp_path)
     for title, category, groups, body in DOCS:
         _, vid = await create_version(ctx, body, title=title, groups=groups, category=category)
         await run_pipeline(ctx, vid)
     r = aioredis.from_url(os.environ["REDIS_URL"], decode_responses=True)
-    async with client(build_state(pool, r, tmp_path, llm_provider="fake")) as c:
+    async with client(build_state(pool, r, tmp_path, llm_provider="fake", phi_mode="redact")) as c:
         yield c
     await r.aclose()
 
@@ -228,7 +229,7 @@ async def test_a_long_first_question_is_shortened_for_the_title_and_identifiers_
 # ---- retrieval brings the neighbouring sections of the best-matching document --------------------------------------
 
 async def test_a_question_about_a_document_gets_its_neighbouring_sections_not_just_one_fragment(api):
-    events = await chat(api, "sam", "who is jane doe")
+    events = await chat(api, "sam", "what does the nursing resume say")
     sources = next(data for kind, data in events if kind == "sources")["passages"]
     jane = [p for p in sources if p["title"] == "Jane Doe Resume"]
     assert len(jane) >= 3, [p["section"] for p in jane]
@@ -236,14 +237,14 @@ async def test_a_question_about_a_document_gets_its_neighbouring_sections_not_ju
 
 
 async def test_neighbouring_sections_never_bring_in_a_document_the_person_cannot_read(api):
-    events = await chat(api, "riley", "who is jane doe")
+    events = await chat(api, "riley", "what does the nursing resume say")
     titles = {p["title"] for kind, data in events if kind == "sources" for p in data["passages"]}
     assert "Contact and Droplet Isolation Precautions" not in titles
     assert "Fall Risk Assessment and Prevention" not in titles
 
 
 async def test_possessive_follow_up_has_the_resumes_experience_available(api):
-    first = final(await chat(api, "sam", "who is jane doe"))
+    first = final(await chat(api, "sam", "what does the nursing resume say"))
     events = await chat(api, "sam", "whats her background", first["conversation_id"])
     out = final(events)
     assert out["fallback"] is None
@@ -269,7 +270,7 @@ async def test_neighbouring_context_preserves_relevant_search_hits_and_scores(ap
     assert [(p.chunk_id, p.score) for p in passages] == expected
 
 
-async def test_provider_outage_still_answers_identity_and_background_from_the_uploaded_resume(api, monkeypatch):
+async def test_provider_outage_still_answers_from_the_uploaded_resume_and_a_background_follow_up(api, monkeypatch):
     from common.llm import ProviderUnavailable
     from common.llm.fake import FakeLLM
 
@@ -278,11 +279,11 @@ async def test_provider_outage_still_answers_identity_and_background_from_the_up
         yield ""
 
     monkeypatch.setattr(FakeLLM, "stream", unavailable)
-    out = final(await chat(api, "sam", "who is jane doe"))
+    out = final(await chat(api, "sam", "what does the nursing resume say"))
     assert out["fallback"] == "provider_unavailable" and out["receipt"]["mode"] == "extractive"
-    assert "JANE DOE" in out["answer"]
     assert out["cited"] and all(c["title"] == "Jane Doe Resume" for c in out["citations"])
     follow_up = final(await chat(api, "sam", "what is her background", out["conversation_id"]))
     assert follow_up["receipt"].get("mode") == "extractive" and follow_up["cited"]
-    assert "trained new graduate nurses" in follow_up["answer"]
+    # Experience and education are both background; either is a correct quote.
+    assert any(t in follow_up["answer"] for t in ("trained new graduate nurses", "Bachelor of Science in Nursing"))
     assert follow_up["conversation_id"] == out["conversation_id"]

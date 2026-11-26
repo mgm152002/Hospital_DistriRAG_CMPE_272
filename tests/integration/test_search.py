@@ -40,7 +40,7 @@ async def seeded(pool, tmp_path):
 @pytest.fixture
 async def api(pool, tmp_path, seeded):
     r = aioredis.from_url(os.environ["REDIS_URL"], decode_responses=True)
-    async with client(build_state(pool, r, tmp_path)) as c:
+    async with client(build_state(pool, r, tmp_path, phi_mode="redact")) as c:
         yield c
     await r.aclose()
 
@@ -95,7 +95,7 @@ async def test_query_audit_is_redacted(api, pool):
 
 async def test_query_is_redacted_before_embedding(pool, tmp_path, seeded):
     """Covers: CP-3. Retrieval must not pass identifiers to an embedding provider."""
-    state = build_state(pool, None, tmp_path)
+    state = build_state(pool, None, tmp_path, phi_mode="redact")
     original = state.embedder
 
     class RecordingEmbedder:

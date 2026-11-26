@@ -32,7 +32,7 @@ services:
     volumes: [ "../web:/web", "web_node_modules:/web/node_modules" ]
     command: ["sh", "-c", "npm install --no-audit --no-fund --loglevel=error && npm test"]
   e2e:
-    image: mcr.microsoft.com/playwright:v1.49.0-noble
+    image: mcr.microsoft.com/playwright:v1.65.1-noble
     working_dir: /web
     volumes: [ "../web:/web", "e2e_node_modules:/web/node_modules" ]
     environment: { BASE_URL: "${BASE_URL:-http://host.docker.internal:8000}" }

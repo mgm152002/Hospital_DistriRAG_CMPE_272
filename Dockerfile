@@ -13,7 +13,7 @@ for extra in filter(None, os.environ.get("EXTRAS", "").split(",")):
     deps += p["optional-dependencies"][extra]
 print("\n".join(deps))
 PY
-RUN pip install -r /tmp/req.txt
+RUN pip install --upgrade pip && pip install -r /tmp/req.txt
 
 # ---- Development / test image: source is mounted at /app ----
 FROM deps AS dev

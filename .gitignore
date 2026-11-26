@@ -8,5 +8,7 @@ node_modules/
 web/dist/
 .env
 .superpowers/
-data/
+/data/
 deploy/.env.cloud
+web/e2e/screenshots/
+web/test-results/

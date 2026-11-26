@@ -1,0 +1,43 @@
+# 20 strings with PHI (types listed) and 20 without. Used by test_phi.py (recall ≥ 0.95, false positives ≤ 0.10).
+with_phi:
+  - { text: "Patient John Smith MRN 00482913 fell, what's the post-fall procedure?", types: [NAME, MRN] }
+  - { text: "pt Maria Gonzalez has a fever, what is our sepsis screen?", types: [NAME] }
+  - { text: "MRN: 7734120 needs a transfusion, what are the vital sign checks?", types: [MRN] }
+  - { text: "Call the family at (408) 555-0199 about discharge", types: [PHONE] }
+  - { text: "Email the daughter at jane.doe@example.com with discharge instructions", types: [EMAIL] }
+  - { text: "DOB 04/12/1958, can she have contrast?", types: [DOB] }
+  - { text: "Date of birth: 1971-02-03 for the isolation patient", types: [DOB] }
+  - { text: "SSN 123-45-6789 is on the consent form, is that ok?", types: [SSN] }
+  - { text: "Mrs. Patel in room 4 refuses the pressure injury turn schedule", types: [NAME] }
+  - { text: "Mr Johnson's wound dressing change steps?", types: [NAME] }
+  - { text: "Patient named Ahmed Khan needs an interpreter for discharge", types: [NAME] }
+  - { text: "She lives at 742 Evergreen Terrace Drive and needs transport", types: [ADDRESS] }
+  - { text: "Send the heart failure sheet to 15 Maple Street", types: [ADDRESS] }
+  - { text: "medical record number 55120034 had a fall", types: [MRN] }
+  - { text: "Phone 650.555.0123 for the visitor", types: [PHONE] }
+  - { text: "born on 7/4/1990, what's the hypoglycemia protocol?", types: [DOB] }
+  - { text: "Patient Robert Lee with HR 125 and BP 85/50, what should I check?", types: [NAME] }
+  - { text: "Ms. Okafor needs restraints, what is the policy?", types: [NAME] }
+  - { text: "MRN#88231 code blue in bay 3", types: [MRN] }
+  - { text: "Contact +1 415 555 0100 for pharmacy callback re: patient Lisa Wong", types: [PHONE, NAME] }
+without_phi:
+  - "What is our hand hygiene policy before entering an isolation room?"
+  - "Patient Safety reporting steps after a fall"
+  - "Where is the Patient Identification policy?"
+  - "How long should I rub hands with alcohol, 20 to 30 seconds?"
+  - "Patient has temp 39C, HR 125, BP 85/50. What should I check?"
+  - "Does this patient have sepsis?"
+  - "How much heparin should I give a 70 kg patient?"
+  - "What changed in version 2 of the visitor policy effective 2026-11-01?"
+  - "Sepsis screening criteria lactate above 2 mmol/L"
+  - "When do I call the rapid response team?"
+  - "Visiting hours are 8 to 20 on weekdays"
+  - "Blood transfusion vital signs at 15 minutes"
+  - "MRSA contact precautions gown and gloves"
+  - "Patient Transport request workflow"
+  - "What is the pain reassessment interval after IV opioids?"
+  - "Stroke alert: last known well time"
+  - "Discharge instructions for heart failure daily weights"
+  - "Code Blue procedure for the cardiac arrest team"
+  - "Fall risk score of 45 or higher means high risk"
+  - "Room 412 cleaning after C. diff"

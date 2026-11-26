@@ -18,7 +18,7 @@ MODELS = [{"id": "openrouter/free", "name": "Automatic free models"},
 async def configured(pool, tmp_path, monkeypatch):
     state = build_state(pool, None, tmp_path, chat_settings_path=str(tmp_path / "private" / "chat.json"))
 
-    async def catalog(_):
+    async def catalog(_, provider=None):
         return MODELS, None
 
     monkeypatch.setattr(settings_routes, "model_catalog", catalog)
