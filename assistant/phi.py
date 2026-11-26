@@ -89,10 +89,24 @@ def _is_person(word: str) -> bool:
     return any(e.label_ == "PERSON" and e.start_char <= start < e.end_char for e in _nlp()(probe).ents)
 
 
+# Markup that can precede the first word of a list item: "- ", "* ", "• ", "2. ", "3) ", "**".
+LIST_ITEM_PREFIX = re.compile(r"\s*(?:[-*•+]|\d{1,2}[.)])?\s*(?:\*\*|__)?")
+
+
+def _starts_item(token) -> bool:
+    """The first word of a sentence or of a list item. spaCy treats the bullet ("- ") as the sentence start, so
+    "- Complete a huddle" would otherwise not look like an instruction."""
+    if token.is_sent_start:
+        return True
+    text = token.doc.text
+    line_start = text.rfind("\n", 0, token.idx) + 1
+    return LIST_ITEM_PREFIX.fullmatch(text[line_start:token.idx]) is not None
+
+
 def _imperative(token) -> bool:
-    """A capitalised first word that the model reads as a verb once lowercased ("Rub all surfaces…") is an
-    instruction, not a name; "Manoj fell" still reads as a noun."""
-    if not token.is_sent_start:
+    """A capitalised first word (of a sentence or list item) that the model reads as a verb once lowercased
+    ("Rub all surfaces…", "- Complete a huddle") is an instruction, not a name; "Manoj fell" still reads as a noun."""
+    if not _starts_item(token):
         return False
     sent = token.sent
     offset = token.idx - sent.start_char

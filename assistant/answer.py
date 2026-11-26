@@ -102,7 +102,7 @@ class ChatDeps:
 # 3: hedge recovery, relevance gate, extractive fallbacks, emergency lead, redaction-free retrieval.
 # 4: conversational prompt, model-condensed follow-up queries, markdown-aware citation check, hedges trusted (no quote
 #    recovery from a merged follow-up query).
-GUARD_VERSION = 5  # 5: place and institution names no longer redacted as people
+GUARD_VERSION = 6  # 6: an instruction at the start of a list item is not a name; 5: places are not people
 
 
 def cache_key(question: str, groups: Any, label: str, provider: str, passages: list[Passage],

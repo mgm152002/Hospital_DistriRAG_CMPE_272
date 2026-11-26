@@ -11,7 +11,7 @@ Everything runs in Docker: you never need Python, Postgres or Redis on your mach
 ## First run (5 commands)
 
 ```bash
-git clone https://github.com/mgm152002/Cmpe273_DistriRag.git distrirag && cd distrirag
+git clone https://github.com/mgm152002/Hospital_DistriRAG_CMPE_272.git distrirag && cd distrirag
 cp .env.example .env                 # DEPLOYMENT_PROFILE=lite: no models, no keys
 make up                              # postgres + redis + one app process
 make seed                            # upload and approve the synthetic hospital corpus

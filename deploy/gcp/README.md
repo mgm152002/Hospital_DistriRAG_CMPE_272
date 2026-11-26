@@ -22,7 +22,7 @@ You need `gcloud` logged in as a project owner and `gh` logged in to GitHub:
 
 ```sh
 gcloud auth login
-PROJECT=cmpe-272-515921 REPO=mgm152002/Cmpe273_DistriRag bash deploy/gcp/setup.sh
+PROJECT=cmpe-272-515921 REPO=mgm152002/Hospital_DistriRAG_CMPE_272 bash deploy/gcp/setup.sh
 ```
 
 The script is safe to rerun. It enables the APIs and creates the Artifact

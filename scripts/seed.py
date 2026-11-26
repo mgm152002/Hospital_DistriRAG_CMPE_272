@@ -2,6 +2,7 @@
 
     python scripts/seed.py            # every version-1 document
     python scripts/seed.py --v2       # the four version-2 updates (for the live version demo)
+    python scripts/seed.py --review-queue   # drafts uploaded but left pending, for the approval demo
 
 Safe to re-run: documents that already exist (by title) are skipped, and uploads carry an Idempotency-Key.
 """
@@ -46,7 +47,7 @@ def existing(client: httpx.Client) -> dict[str, dict]:
     return {d["title"]: d for d in client.get("/api/documents", headers=headers("alex")).raise_for_status().json()}
 
 
-def upload(client: httpx.Client, entry: dict, document_id: str | None) -> str:
+def upload(client: httpx.Client, entry: dict, document_id: str | None, approve: bool = True) -> str:
     path = ROOT / entry["file"]
     files = {"file": (path.name, path.read_bytes(), TYPES[path.suffix])}
     key = f"seed:{entry['key']}:v{entry['version']}"
@@ -58,6 +59,8 @@ def upload(client: httpx.Client, entry: dict, document_id: str | None) -> str:
         response = client.post("/api/documents", headers=headers("alex", key), data=form, files=files)
     response.raise_for_status()
     version_id = response.json()["version_id"]
+    if not approve:
+        return version_id
     approved = client.post(f"/api/versions/{version_id}/approve", headers=headers("taylor"), json={"comment": "seed"})
     approved.raise_for_status()
     return version_id
@@ -75,12 +78,29 @@ def wait_ready(client: httpx.Client, version_ids: list[str], timeout: float) -> 
     return statuses
 
 
+def review_queue(base: str) -> int:
+    entries = yaml.safe_load((ROOT / "review" / "queue.yaml").read_text())["documents"]
+    with SeedClient(base_url=base, timeout=60) as client:
+        client.configure_auth()
+        have = existing(client)
+        for entry in entries:
+            if entry["title"] in have:
+                print(f"skip   {entry['title']} (exists)")
+                continue
+            upload(client, entry, None, approve=False)
+            print(f"draft  {entry['title']} (pending approval)")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--v2", action="store_true", help="upload the version-2 updates")
+    parser.add_argument("--review-queue", action="store_true", help="upload drafts and leave them pending approval")
     parser.add_argument("--timeout", type=float, default=300)
     args = parser.parse_args()
     base = os.environ.get("API_URL", "http://localhost:8000")
+    if args.review_queue:
+        return review_queue(base)
     entries = yaml.safe_load((ROOT / "manifest.yaml").read_text())["documents"]
     wanted = 2 if args.v2 else 1
     with SeedClient(base_url=base, timeout=60) as client:

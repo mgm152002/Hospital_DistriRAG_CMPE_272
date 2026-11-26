@@ -12,7 +12,7 @@ conversations:
     expect: answer
     turns:
       - "A febrile patient in triage has a heart rate of 125 and a blood pressure of 85/50. What does our sepsis protocol say we should check first?"
-      - "Which findings mean we escalate, and to whom?"
+      - "Which findings trigger escalation under the sepsis screening protocol, and who do we escalate to?"
   - persona: priya
     title: "Stroke alert: defining last known well"
     expect: answer
@@ -85,7 +85,7 @@ conversations:
     expect: answer
     turns:
       - "How quickly must a critical lab value be communicated, and to whom?"
-      - "What has to be documented when the result is read back?"
+      - "What must be documented after a critical lab value is read back?"
   - persona: jordan
     title: "Restricted policy: controlled substance waste"
     expect: guardrail
@@ -103,7 +103,7 @@ conversations:
     expect: answer
     turns:
       - "A family is asking about visiting this evening. What are the visiting hours and how many visitors can be at the bedside?"
-      - "Are there any restrictions they should know about?"
+      - "What visitor restrictions does the visitor policy list?"
   - persona: riley
     title: "Booking a patient transport"
     expect: answer
@@ -135,8 +135,8 @@ conversations:
     title: "Two-identifier rule before care"
     expect: answer
     turns:
-      - "What does the patient identification policy require before giving medication or taking samples?"
-      - "Which identifiers are not acceptable?"
+      - "What two identifiers does the patient identification policy require?"
+      - "Which identifiers are not acceptable, and what happens when the identifiers do not match?"
   - persona: taylor
     title: "Needlestick exposure: steps and reporting"
     expect: answer

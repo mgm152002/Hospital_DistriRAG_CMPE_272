@@ -3,6 +3,7 @@
     python scripts/seed_chats.py              # every conversation not already present (by title)
     python scripts/seed_chats.py --only sam   # one persona
     python scripts/seed_chats.py --replace    # delete and replay conversations that already exist
+    python scripts/seed_chats.py --replace --title "Stroke alert: defining last known well"   # just one
 
 Free model tiers rate-limit hard. A turn that comes back as a provider outage (429s surface that way), or an
 "answer" turn that falls back to passages, deletes the half-built conversation and retries it after an
@@ -98,6 +99,7 @@ def play(person: Persona, case: dict, attempts: int, base_delay: float, turn_gap
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", help="persona id, e.g. sam")
+    parser.add_argument("--title", help="one conversation, by its exact title")
     parser.add_argument("--replace", action="store_true", help="delete and replay conversations that already exist")
     parser.add_argument("--attempts", type=int, default=6)
     parser.add_argument("--base-delay", type=float, default=20.0, help="first backoff in seconds (doubles each try)")
@@ -105,7 +107,7 @@ def main() -> int:
     args = parser.parse_args()
     base = os.environ.get("API_URL", "http://localhost:8000")
     cases = [c for c in yaml.safe_load(CASES.read_text())["conversations"]
-             if not args.only or c["persona"] == args.only]
+             if (not args.only or c["persona"] == args.only) and (not args.title or c["title"] == args.title)]
 
     people: dict[str, Persona] = {}
     failed = 0

@@ -1,6 +1,7 @@
 TEST = docker compose -f deploy/docker-compose.test.yml
 APP  = docker compose $(if $(wildcard .env),--env-file .env) -f deploy/docker-compose.yml
 API_URL ?= http://host.docker.internal:8000
+BASE_URL ?= http://host.docker.internal:8000
 UX_API ?= http://localhost:8000
 
 .PHONY: up up-full up-airgapped stop down logs ps seed seed-v2 eval build-test test test-offline lint test-integration test-web test-e2e \
@@ -29,6 +30,8 @@ clean-demo:    ## list test leftovers in the demo database (add ARGS=--apply to 
 	$(TEST) run --rm --no-deps -e API_URL=$(API_URL) unit python scripts/clean_demo.py $(ARGS)
 seed-chats:    ## play and title the demo conversations in corpus/demo_chats.yaml (ARGS: --only sam, --replace)
 	$(TEST) run --rm --no-deps -e API_URL=$(API_URL) unit python scripts/seed_chats.py $(ARGS)
+seed-review:   ## upload two drafts and leave them pending, so the approval queue has work during a demo
+	$(TEST) run --rm --no-deps -e API_URL=$(API_URL) unit python scripts/seed.py --review-queue
 seed-v2:
 	$(TEST) run --rm --no-deps -e API_URL=$(API_URL) unit python scripts/seed.py --v2
 eval:          ## evaluate the running, seeded stack with its configured provider
@@ -50,6 +53,10 @@ test-web:
 	$(TEST) run --rm --no-deps web
 test-e2e:      ## browser test of the demo storyline against a running stack (BASE_URL)
 	$(TEST) run --rm --no-deps e2e
+test-functional: ## FT-01..FT-12 in a real browser against BASE_URL, with a screenshot per test (copied to docs/screenshots)
+	$(TEST) run --rm --no-deps -e BASE_URL=$(BASE_URL) -e SHOTS=e2e/functional/screenshots e2e sh -c \
+	  "npm install --no-audit --no-fund --loglevel=error && npx playwright test e2e/functional.spec.ts --reporter=list,html"
+	mkdir -p docs/screenshots/functional && cp web/e2e/functional/screenshots/*.png docs/screenshots/functional/
 regression:
 	$(TEST) run --rm integration pytest -q -m regression tests/regression
 	$(TEST) down -v --remove-orphans

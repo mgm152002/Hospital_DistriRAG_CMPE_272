@@ -69,3 +69,15 @@ def test_policy_wording_about_personal_fields_is_left_alone():
                  "Age is a risk factor for falls", "the patient lives in a care home",
                  "What number do I call for a code blue?", "Who is the contact for infection control?"]:
         assert not screen(text).found, text
+
+
+def test_an_instruction_at_the_start_of_a_list_item_is_not_a_name():
+    """A model answer in bullets read "- Complete a post-fall huddle" as a person named Complete."""
+    answer = ("- Assess the patient for injury **before** moving them [1].\n- Notify the provider after the fall [1].\n"
+              "- Complete a post‑fall huddle within the shift [1].\n1. Document the fall in the incident system [1].\n"
+              "* **Rub** all hand surfaces for 20 to 30 seconds [2].")
+    assert screen(answer).redacted == answer
+
+
+def test_a_name_at_the_start_of_a_list_item_is_still_caught():
+    assert "Manoj" not in screen("- Manoj fell out of bed overnight").redacted

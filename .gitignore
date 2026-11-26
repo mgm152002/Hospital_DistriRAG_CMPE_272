@@ -13,3 +13,4 @@ deploy/.env.cloud
 web/e2e/screenshots/
 web/test-results/
 .DS_Store
+web/e2e/functional/

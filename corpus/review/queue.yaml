@@ -1,0 +1,4 @@
+# Drafts uploaded by Alex but left for Taylor to approve during the demo (python scripts/seed.py --review-queue).
+documents:
+  - { key: central-line, version: 1, file: review/central-line-bundle.md, title: "Central Line Insertion and Maintenance Bundle", category: Infection Control, department: Infection Prevention, classification: internal, groups: [clinical] }
+  - { key: workplace-violence, version: 1, file: review/workplace-violence.md, title: "Workplace Violence Prevention and Response", category: Patient Safety, department: Security, classification: internal, groups: [all-staff] }
