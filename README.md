@@ -1,8 +1,8 @@
 # DistriRAG: A Fault-Tolerant Distributed Retrieval Pipeline for Hospital Knowledge
 
-**CMPE 273: Enterprise Distributed Systems · Master's Final Project · San José State University · Fall 2026**
+**CMPE 272: Enterprise Software Platforms · Master's Final Project · San José State University · Fall 2026**
 
-**Team:** Manoj Ganjigatte Manjunatha · Prajval Sudhir · Vinayak Gupta
+**Team CTRL-ALT-DEL:** Manoj Ganjigatte Manjunatha · Prajval Sudhir · Vinayak Gupta
 
 **Live deployment:** http://35.184.233.38 (Google Cloud, continuously deployed from `main`)
 
@@ -199,5 +199,5 @@ The full list is in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 ## License and data
 
-Academic project for CMPE 273 at San José State University. All hospital documents, personas and patients in this
+Academic project by team CTRL-ALT-DEL for CMPE 272 at San José State University. All hospital documents, personas and patients in this
 repository are fictional.
