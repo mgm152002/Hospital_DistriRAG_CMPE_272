@@ -97,12 +97,22 @@ jobs:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
           APP_ENV: ${{ secrets.APP_ENV }}
         run: |
-          printf '%s' "$APP_ENV" | gcloud compute ssh "$GCP_VM" --zone="$GCP_ZONE" --quiet --command "
+          remote="
             set -euo pipefail
             sudo git -C /opt/distrirag -c safe.directory=/opt/distrirag fetch --quiet origin $GITHUB_SHA
             sudo git -C /opt/distrirag -c safe.directory=/opt/distrirag checkout --quiet --force --detach $GITHUB_SHA
             sudo IMAGE_TAG=$IMAGE_TAG DOMAIN=$GCP_DOMAIN bash /opt/distrirag/deploy/gcp/rollout.sh
           "
+          # Exit 255 is ssh itself (OS Login keys can lag on a fresh VM); retry that, fail fast on anything else.
+          for i in 1 2 3 4 5; do
+            set +e
+            printf '%s' "$APP_ENV" | gcloud compute ssh "$GCP_VM" --zone="$GCP_ZONE" --quiet --command "$remote"
+            rc=$?
+            set -e
+            [ "$rc" -ne 255 ] && exit "$rc"
+            echo "ssh failed (attempt $i), retrying"; sleep 15
+          done
+          exit 255
 
       - name: Smoke-test the public URL
         run: |

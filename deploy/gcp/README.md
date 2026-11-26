@@ -16,6 +16,8 @@ repository. No service-account key exists anywhere.
 
 ## One-time setup
 
+**Status:** done for `cmpe-272-515921`. The app is served at `http://35.184.233.38` (static IP `distrirag-ip`).
+
 You need `gcloud` logged in as a project owner and `gh` logged in to GitHub:
 
 ```sh
