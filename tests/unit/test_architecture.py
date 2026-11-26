@@ -1,4 +1,4 @@
-"""Business rules stay pure: rule modules never import I/O libraries (Antara ports rule).
+"""Business rules stay pure: rule modules never import I/O libraries (ports-and-adapters rule).
 Covers: TS-6."""
 import ast
 import pathlib

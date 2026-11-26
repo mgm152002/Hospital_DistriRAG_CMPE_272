@@ -1,50 +1,78 @@
-# GCP deployment CI — setup (draft)
+# Deploying to GCP
 
-Route chosen for the draft: **build in CI → Artifact Registry → roll out to
-the existing GCE VM** (`deploy/cloud/` compose + Caddy). It reuses the VM
-guide already in the repo, stays under the $25/mo target, and needs no app
-code changes beyond one compose line. A Cloud Run alternative is at the end.
+`.github/workflows/deploy-gcp.yml` builds the `runtime` image, pushes it to
+Artifact Registry tagged with the commit SHA, and rolls it out to one GCE VM
+running the lite stack behind Caddy (`deploy/cloud/`). It runs automatically
+after `ci` passes on a push to `main`, or manually from the Actions tab.
+Every job is skipped until the `GCP_PROJECT` repository variable exists, so
+the workflow stays green before setup.
 
-## One-time GCP setup (you, in the GCP console / gcloud)
+## One-time GCP setup
 
-1. Project + APIs: `gcloud services enable artifactregistry.googleapis.com compute.googleapis.com iamcredentials.googleapis.com`
-2. Artifact Registry repo: `gcloud artifacts repositories create distrirag --repository-format=docker --location=<REGION>`
-3. VM (if not already up): e2-standard-2 (2 vCPU / 4 GB), Ubuntu 24.04, ports
-   22/80/443, Docker installed, code at `/opt/distrirag` on `main`, env at
-   `deploy/.env.cloud` per `deploy/cloud/README.md`.
-4. Service account `distrirag-deploy@<PROJECT>.iam.gserviceaccount.com` with:
-   Artifact Registry Reader + Writer, Compute OS Login / Instance Admin.
-5. Workload Identity Federation: create a WIF pool + GitHub provider
-   (attribute `repository == mgm152002/Cmpe273_DistriRag`), grant the SA
-   `roles/iam.workloadIdentityUser`. No long-lived JSON keys anywhere.
-6. GitHub repo secrets: `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`, `GCP_DOMAIN`.
-   Repo variables (or edit the workflow env): project, region, zone, VM name.
+```sh
+PROJECT=<project-id> REGION=us-central1 ZONE=us-central1-a VM=distrirag-vm
+REPO=mgm152002/Cmpe273_DistriRag
 
-## What the workflow does
+gcloud config set project $PROJECT
+gcloud services enable artifactregistry.googleapis.com compute.googleapis.com \
+  iamcredentials.googleapis.com sts.googleapis.com
+gcloud artifacts repositories create distrirag --repository-format=docker --location=$REGION
 
-`deploy-gcp.yml` runs on pushes to `main` touching app/deploy/workflow paths,
-or manually. It builds the `runtime` image (same Dockerfile target CI uses,
-`EXTRAS=minilm,s3,azure`), pushes it tagged with the commit SHA, smoke-imports
-it, then SSHes to the VM, fast-forward pulls `main`, pulls the image and
-restarts only the `app` service. It then polls `/readyz` on localhost and on
-`https://<DOMAIN>/readyz`. Rollback is re-running the workflow on the previous
-commit, or on the VM: `IMAGE_TAG=<previous-sha-tag> docker compose ... up -d`.
+# Deploy service account used by GitHub Actions
+gcloud iam service-accounts create distrirag-deploy
+SA=distrirag-deploy@$PROJECT.iam.gserviceaccount.com
+for role in roles/artifactregistry.writer roles/compute.instanceAdmin.v1 \
+            roles/compute.osAdminLogin roles/iam.serviceAccountUser; do
+  gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$SA --role=$role
+done
 
-## The one repo change the GCP PR makes
+# Workload Identity Federation: GitHub OIDC, restricted to this repository
+gcloud iam workload-identity-pools create github --location=global
+gcloud iam workload-identity-pools providers create-oidc github --location=global \
+  --workload-identity-pool=github --issuer-uri=https://token.actions.githubusercontent.com \
+  --attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository \
+  --attribute-condition="assertion.repository=='$REPO'"
+POOL=$(gcloud iam workload-identity-pools describe github --location=global --format='value(name)')
+gcloud iam service-accounts add-iam-policy-binding $SA --role=roles/iam.workloadIdentityUser \
+  --member="principalSet://iam.googleapis.com/$POOL/attribute.repository/$REPO"
+gcloud iam workload-identity-pools providers describe github --location=global \
+  --workload-identity-pool=github --format='value(name)'   # -> GCP_WIF_PROVIDER
+```
 
-- Add `.github/workflows/deploy-gcp.yml` (this draft, values filled in).
-- One line in `deploy/docker-compose.yml`, app service:
-  `image: ${IMAGE_TAG:-distrirag:latest}` — so compose pulls the CI image
-  instead of building locally. Local `make up` behaviour is unchanged
-  (no `IMAGE_TAG` set → builds as today).
-- This README (shortened) under `deploy/gcp/README.md`.
+## The VM
 
-## Cloud Run alternative (if you pick it instead)
+e2-standard-2 (2 vCPU / 4 GB), Ubuntu 24.04, ports 80/443 open, Docker with
+the compose plugin installed. Its own service account needs
+**Artifact Registry Reader** so it can pull images. Then follow
+`deploy/cloud/README.md`: clone this repo to `/opt/distrirag` and create
+`deploy/.env.cloud` (domain, provider key). That env file stays on the VM
+and is never committed.
 
-Same build/push job, then `gcloud run deploy distrirag --image=<tag>
---region=<REGION> --allow-unauthenticated` with `--set-env-vars` for
-`DATABASE_URL` (Cloud SQL with pgvector, private IP + VPC connector) and
-`REDIS_URL` (Memorystore). Needs: a VPC connector, Cloud SQL instance, and
-the app's `DATABASE_URL`/`REDIS_URL` handling verified against managed
-services. Cost is higher (Memorystore basic ~$35/mo alone) and it is a bigger
-change than the VM route, which is why the VM route is the draft default.
+## GitHub settings (Settings → Secrets and variables → Actions)
+
+| Kind     | Name               | Value                                        |
+|----------|--------------------|----------------------------------------------|
+| Secret   | `GCP_WIF_PROVIDER` | provider name printed above                  |
+| Secret   | `GCP_DEPLOY_SA`    | `distrirag-deploy@<project>.iam.gserviceaccount.com` |
+| Variable | `GCP_PROJECT`      | project id                                   |
+| Variable | `GCP_REGION`       | e.g. `us-central1`                           |
+| Variable | `GCP_ZONE`         | e.g. `us-central1-a`                         |
+| Variable | `GCP_VM`           | VM name                                      |
+| Variable | `GCP_DOMAIN`       | public hostname Caddy serves                 |
+| Variable | `GCP_AR_REPO`      | optional; defaults to `distrirag`            |
+
+The deploy job uses the `production` environment, so you can add required
+reviewers there to gate each rollout.
+
+## What a rollout does
+
+1. Build the `runtime` image (`EXTRAS=minilm,s3,azure`), smoke-import it, push `…/app:<sha>`.
+2. SSH to the VM, check out that exact commit in `/opt/distrirag`, pull the image,
+   and restart `app` (and `caddy` if its config changed) with `IMAGE_TAG` set.
+3. Wait for `/readyz` inside the container, then on `https://<domain>/readyz`.
+
+`deploy/docker-compose.yml` uses `image: ${IMAGE_TAG:-distrirag:latest}`, so
+local `make up` still builds as before.
+
+**Rollback:** run the workflow manually from the previous commit, or on the VM:
+`IMAGE_TAG=<region>-docker.pkg.dev/<project>/distrirag/app:<old-sha> docker compose -f deploy/docker-compose.yml -f deploy/cloud/docker-compose.cloud.yml --profile lite up -d app`.

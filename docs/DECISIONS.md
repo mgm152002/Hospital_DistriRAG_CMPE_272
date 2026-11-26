@@ -2,7 +2,7 @@
 
 ## 1. Outbox + Redis Streams instead of Temporal
 
-**History.** DistriRAG grew out of the Antara project, which coordinated ingestion with Temporal workflows on a
+**History.** DistriRAG grew out of an earlier project, which coordinated ingestion with Temporal workflows on a
 two-node k3s cluster with KEDA autoscaling and SigNoz observability (about 36 pods, 24 GB of RAM).
 
 **Decision.** Replace Temporal with a transactional outbox, a relay and Redis Streams consumer groups.

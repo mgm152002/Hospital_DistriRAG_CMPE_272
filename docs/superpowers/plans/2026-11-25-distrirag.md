@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Turn the Antara repo into DistriRAG: a hospital knowledge pipeline (outbox → relay → Redis Streams → workers → pgvector) with source-aware search, a guarded clinical-reference assistant, compliance controls, a React UI, and containers that run on weak hardware.
+**Goal:** Turn the base repo into DistriRAG: a hospital knowledge pipeline (outbox → relay → Redis Streams → workers → pgvector) with source-aware search, a guarded clinical-reference assistant, compliance controls, a React UI, and containers that run on weak hardware.
 
-**Architecture:** One Python image runs `api`, `relay`, `worker`, `recovery`, or `all` (every role as asyncio tasks in one process, used on weak hardware). PostgreSQL + pgvector is the source of truth; Redis Streams carries work. The React app is built into the same image and served by FastAPI. Business rules are pure functions behind ports; I/O lives in adapters (Antara's rule, kept by `tests/test_architecture.py`).
+**Architecture:** One Python image runs `api`, `relay`, `worker`, `recovery`, or `all` (every role as asyncio tasks in one process, used on weak hardware). PostgreSQL + pgvector is the source of truth; Redis Streams carries work. The React app is built into the same image and served by FastAPI. Business rules are pure functions behind ports; I/O lives in adapters (the existing rule, kept by `tests/test_architecture.py`).
 
 **Tech Stack:** Python 3.12, FastAPI, psycopg 3 + psycopg_pool, redis-py 5 (asyncio), pypdf, pydantic-settings, httpx, fastembed (ONNX MiniLM, optional), boto3 / azure-storage-blob (optional), prometheus-client; React 18 + Vite + TypeScript + Tailwind + TanStack Query, Vitest + Testing Library + vitest-axe, Playwright; Docker Compose; GitHub Actions.
 
@@ -61,11 +61,11 @@ deploy/        sql/001_distrirag.sql  docker-compose.yml  docker-compose.test.ym
 .github/workflows/ci.yml   Dockerfile   Makefile   pyproject.toml   .env.example
 ```
 
-Deleted from Antara (Task 1): `agent/`, `gateway/`, `reconciler/`, `ingest/` (logic moved), `loadtest/`, `api/ops/flood.py`, `api/static/`, `common/temporal_client.py`, `common/worker_runtime.py`, `common/queue_stats.py`, `common/names.py`, `common/queues.py`, `common/retry.py`, `deploy/k3s`, `deploy/signoz`, `deploy/instana`, `deploy/aws`, `deploy/local`, `deploy/compose`, `deploy/sql/00*.sql`, `demo/`, `evals/fixtures`, `scripts/*.sh` except none, and tests for those.
+Deleted from the base codebase (Task 1): `agent/`, `gateway/`, `reconciler/`, `ingest/` (logic moved), `loadtest/`, `api/ops/flood.py`, `api/static/`, `common/temporal_client.py`, `common/worker_runtime.py`, `common/queue_stats.py`, `common/names.py`, `common/queues.py`, `common/retry.py`, `deploy/k3s`, `deploy/signoz`, `deploy/instana`, `deploy/aws`, `deploy/local`, `deploy/compose`, `deploy/sql/00*.sql`, `demo/`, `evals/fixtures`, `scripts/*.sh` except none, and tests for those.
 
 ---
 
-### Task 1: Bootstrap — clean Antara, tooling, test containers (E0-1, E0-4 skeleton)
+### Task 1: Bootstrap — clean the base codebase, tooling, test containers (E0-1, E0-4 skeleton)
 
 **Files:** Delete the list above. Create `pyproject.toml` (rewrite), `deploy/docker-compose.test.yml`, `Dockerfile` (dev stage only for now), `Makefile`, `tests/conftest.py`, `tests/unit/test_smoke.py`. Keep `tests/test_architecture.py` (move to `tests/unit/`), updated to the new package list.
 

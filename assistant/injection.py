@@ -1,4 +1,4 @@
-"""Prompt-injection stripping and secret redaction (AG-6), kept from Antara's agent/guard.py."""
+"""Prompt-injection stripping and secret redaction (AG-6), carried over from the original agent/guard.py."""
 import re
 
 INJECTION = re.compile(
