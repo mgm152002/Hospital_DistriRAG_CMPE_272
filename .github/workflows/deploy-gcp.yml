@@ -1,0 +1,102 @@
+# DistriRAG — GCP deployment CI (DRAFT, not yet in the repo).
+# Route: build once, push to Artifact Registry, roll out to the existing
+# GCE VM that already runs deploy/cloud/docker-compose.cloud.yml (Caddy HTTPS).
+# The GCP PR adds one line to deploy/docker-compose.yml so the app service
+# pulls the CI-built image:  image: ${IMAGE_TAG:-distrirag:latest}
+# No long-lived GCP keys: Workload Identity Federation (see README-GCP.md).
+# Fill the four <PLACEHOLDER> values from your GCP project before use.
+name: deploy-gcp
+# NOTE: manual runs only until the GCP project, WIF provider and secrets below
+# are filled in (see deploy/gcp/README.md). Uncomment the push trigger then;
+# a push-triggered run before setup would fail on missing secrets.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "Dockerfile"
+  #     - "pyproject.toml"
+  #     - "deploy/**"
+  #     - "common/**"
+  #     - "api/**"
+  #     - "pipeline/**"
+  #     - "search/**"
+  #     - "assistant/**"
+  #     - "documents/**"
+  #     - "web/**"
+  #     - ".github/workflows/deploy-gcp.yml"
+
+concurrency:
+  group: deploy-gcp
+  cancel-in-progress: false   # never cancel a deploy half-way
+
+permissions:
+  contents: read
+  id-token: write             # required for Workload Identity Federation
+
+env:
+  GCP_PROJECT: <GCP_PROJECT_ID>          # e.g. distrirag-prod
+  GCP_REGION: <GCP_REGION>               # e.g. us-central1
+  GCP_ZONE: <GCP_ZONE>                   # e.g. us-central1-a
+  GCP_VM: <GCP_VM_NAME>                  # e.g. distrirag-vm
+  AR_REPO: distrirag                     # Artifact Registry repo name
+  IMAGE: <GCP_REGION>-docker.pkg.dev/<GCP_PROJECT_ID>/distrirag/app
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-24.04
+    outputs:
+      image_tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+      - id: tag
+        run: echo "tag=${{ env.IMAGE }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          build-args: EXTRAS=minilm,s3,azure
+          push: true
+          tags: ${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # The image only ships if the app's own checks pass on it first.
+      - run: |
+          docker run --rm ${{ steps.tag.outputs.tag }} python -c "import run; print('image imports ok')"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Roll out on the VM
+        run: |
+          gcloud compute ssh ${{ env.GCP_VM }} --zone=${{ env.GCP_ZONE }} --quiet --command '
+            set -euo pipefail
+            cd /opt/distrirag
+            git fetch --quiet origin main && git checkout --quiet main && git pull --ff-only --quiet origin main
+            gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+            export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
+            docker compose -f deploy/docker-compose.yml -f deploy/cloud/docker-compose.cloud.yml --profile lite pull app
+            docker compose -f deploy/docker-compose.yml -f deploy/cloud/docker-compose.cloud.yml --profile lite up -d --no-build --no-deps app
+            for i in $(seq 1 60); do curl -sf localhost:8000/readyz && break; sleep 2; done
+            curl -sf localhost:8000/readyz
+          '
+      - name: Smoke-test the public URL
+        run: |
+          for i in $(seq 1 30); do curl -sf https://${{ secrets.GCP_DOMAIN }}/readyz && break; sleep 10; done
+          curl -sf https://${{ secrets.GCP_DOMAIN }}/readyz

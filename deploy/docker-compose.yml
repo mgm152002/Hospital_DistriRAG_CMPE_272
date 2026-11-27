@@ -4,7 +4,7 @@
 #   airgapped (`make up-airgapped`) full + a local Ollama model server (DEPLOYMENT_PROFILE=airgapped).
 name: distrirag
 x-app: &app
-  image: distrirag:latest
+  image: ${IMAGE_TAG:-distrirag:latest}
   build: { context: .., target: runtime, args: { EXTRAS: "${EXTRAS:-}" } }
   restart: unless-stopped
   env_file: [ { path: ../.env, required: false } ]
